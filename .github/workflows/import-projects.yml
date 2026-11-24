@@ -3,8 +3,6 @@ name: Import both Android projects
 on:
   push:
     branches: [main]
-    paths:
-      - .github/workflows/import-projects.yml
   workflow_dispatch:
 
 permissions:
