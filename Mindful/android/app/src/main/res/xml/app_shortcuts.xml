@@ -1,0 +1,15 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_focus_mode"
+        android:shortcutId="focusMode"
+        android:shortcutLongLabel="@string/shortcut_focus_mode_description"
+        android:shortcutShortLabel="@string/shortcut_focus_mode_label">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.mindful.android://open/focus"
+            android:targetClass="com.mindful.android.nativeapp.MainActivity"
+            android:targetPackage="com.mindful.android" />
+        <categories android:name="android.shortcut.static" />
+    </shortcut>
+</shortcuts>

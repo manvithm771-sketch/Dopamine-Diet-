@@ -1,0 +1,14 @@
+# Gradle cache and local machine configuration
+/.gradle/
+/local.properties
+
+# Generated Android build output
+/captures/
+/build/
+/app/build/
+/app/.cxx/
+
+# Keep signing credentials out of version control
+/key.properties
+**/*.keystore
+**/*.jks

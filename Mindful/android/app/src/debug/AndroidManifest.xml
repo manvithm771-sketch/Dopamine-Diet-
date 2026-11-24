@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internet access is enabled only for debug builds to support development and diagnostics. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
