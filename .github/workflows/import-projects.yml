@@ -23,6 +23,7 @@ jobs:
           repository: manvithm771-sketch/Dopamine-Diet
           ref: main
           path: sources/dopamine-diet
+          token: ${{ secrets.SOURCE_REPOS_TOKEN }}
 
       - name: Check out Mindful source
         uses: actions/checkout@v4
