@@ -1,8 +1,6 @@
 name: Import both Android projects
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
