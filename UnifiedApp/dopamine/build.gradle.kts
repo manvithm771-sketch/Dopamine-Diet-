@@ -8,8 +8,8 @@ android {
     namespace = "com.reeltracker"
     compileSdk = 35
     defaultConfig { minSdk = 29 }
-    sourceSets["main"].java.srcDirs("../Dopamine-Diet/DopamineDiet/app/src/main/java")
-    sourceSets["main"].res.srcDirs("../Dopamine-Diet/DopamineDiet/app/src/main/res")
+    sourceSets["main"].java.srcDirs("../../Dopamine-Diet/DopamineDiet/app/src/main/java")
+    sourceSets["main"].res.srcDirs("../../Dopamine-Diet/DopamineDiet/app/src/main/res")
     sourceSets["main"].manifest.srcFile("src/main/AndroidManifest.xml")
     buildFeatures { compose = true }
     compileOptions {
