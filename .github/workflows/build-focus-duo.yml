@@ -1,0 +1,42 @@
+name: Build Focus Duo APK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "UnifiedApp/**"
+      - ".github/workflows/build-focus-duo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Build unified debug APK
+        run: gradle -p UnifiedApp :app:assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Focus-Duo-debug-apk
+          path: UnifiedApp/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
