@@ -1,7 +1,5 @@
 package com.reeltracker.service
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
@@ -38,28 +36,13 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
     private val brain = ImageView(context)
     private val badge = TextView(context)
     private val fx = FrameLayout(context) // one-shot effects are added and removed here
-    private val smoke = List(3) { ImageView(context) }
-
     private var count: Int? = null
     private var stage = 0
     private val breathing: AnimatorSet
-    private var smokeLoop: ValueAnimator? = null
 
     init {
         clipChildren = false
         layoutParams = LayoutParams(dp(W), dp(H))
-
-        // Smoke sits behind the brain, rising from its top edge.
-        val smokeSprites = intArrayOf(R.drawable.fx_smoke_1, R.drawable.fx_smoke_2, R.drawable.fx_smoke_3)
-        smoke.forEachIndexed { i, v ->
-            v.setImageResource(smokeSprites[i])
-            v.alpha = 0f
-            addView(v, LayoutParams(dp(18), dp(26)).apply {
-                gravity = Gravity.TOP or Gravity.START
-                leftMargin = dp(20 + i * 18)
-                topMargin = dp(BRAIN_TOP - 16)
-            })
-        }
 
         brain.setImageResource(BrainRot.sprite(0))
         brain.scaleType = ImageView.ScaleType.FIT_CENTER
@@ -104,12 +87,10 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         breathing.start()
-        if (BrainRot.isSmoking(stage)) startSmoke()
     }
 
     override fun onDetachedFromWindow() {
         breathing.cancel()
-        stopSmoke()
         fx.removeAllViews()
         super.onDetachedFromWindow()
     }
@@ -152,14 +133,12 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
     private fun reelCounted() {
         squish()
         popBadge()
-        dropFrom(if (BrainRot.isSlimy(stage)) R.drawable.fx_drop_green else R.drawable.fx_drop_blue)
+        dropFrom(R.drawable.fx_drop_blue)
     }
 
     private fun stageUp(newStage: Int) {
         popBadge()
         shake()
-        ring()
-        bolts()
         // Swap the sprite at the peak of the flash.
         brain.animate().alpha(0.35f).setDuration(120).withEndAction {
             applyStage(newStage)
@@ -172,7 +151,6 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
         stage = newStage
         brain.setImageResource(BrainRot.sprite(newStage))
         (badge.background as GradientDrawable).setStroke(dp(1), if (BrainRot.isSlimy(newStage)) SLIME else ACCENT)
-        if (BrainRot.isSmoking(newStage)) startSmoke() else stopSmoke()
     }
 
     private fun squish() {
@@ -223,65 +201,6 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
                 drop.animate().alpha(0f).setDuration(220).withEndAction { fx.removeView(drop) }.start()
             }
             .start()
-    }
-
-    /** A shockwave ring bursting from the brain's centre. */
-    private fun ring() {
-        val size = dp(BRAIN_W)
-        val ring = ImageView(context).apply { setImageResource(R.drawable.fx_ring) }
-        fx.addView(ring, LayoutParams(size, size).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            topMargin = dp(BRAIN_TOP + BRAIN_H / 2) - size / 2
-        })
-        ring.scaleX = 0.3f
-        ring.scaleY = 0.3f
-        ring.alpha = 0.9f
-        ring.animate().scaleX(1.25f).scaleY(1.25f).alpha(0f).setDuration(520)
-            .setInterpolator(DecelerateInterpolator())
-            .withEndAction { fx.removeView(ring) }
-            .start()
-    }
-
-    /** Lightning flickers over the brain, twice. */
-    private fun bolts() {
-        val bolt = ImageView(context).apply { setImageResource(R.drawable.fx_bolt) }
-        fx.addView(bolt, LayoutParams(dp(44), dp(40)).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            topMargin = 0
-        })
-        ObjectAnimator.ofFloat(bolt, View.ALPHA, 0f, 1f, 0.1f, 1f, 0f).apply {
-            duration = 560
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    fx.removeView(bolt)
-                }
-            })
-            start()
-        }
-    }
-
-    private fun startSmoke() {
-        if (smokeLoop != null || !isAttachedToWindow) return
-        // One driver for all three wisps, each offset in phase, so they never pulse together.
-        smokeLoop = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 2400
-            repeatCount = ValueAnimator.INFINITE
-            addUpdateListener { a ->
-                val t = a.animatedValue as Float
-                smoke.forEachIndexed { i, v ->
-                    val p = (t + i / 3f) % 1f
-                    v.translationY = -dp(14f) * p
-                    v.alpha = (if (p < 0.3f) p / 0.3f else (1f - p) / 0.7f) * 0.75f
-                }
-            }
-            start()
-        }
-    }
-
-    private fun stopSmoke() {
-        smokeLoop?.cancel()
-        smokeLoop = null
-        smoke.forEach { it.alpha = 0f }
     }
 
     // ------------------------------------------------------------------ helpers
