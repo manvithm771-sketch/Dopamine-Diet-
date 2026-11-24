@@ -9,8 +9,8 @@ android {
     namespace = "com.mindful.android"
     compileSdk = 35
     defaultConfig { minSdk = 29 }
-    sourceSets["main"].java.srcDirs("../Mindful/android/app/src/main/java")
-    sourceSets["main"].res.srcDirs("../Mindful/android/app/src/main/res")
+    sourceSets["main"].java.srcDirs("../../Mindful/android/app/src/main/java")
+    sourceSets["main"].res.srcDirs("../../Mindful/android/app/src/main/res")
     sourceSets["main"].manifest.srcFile("src/main/AndroidManifest.xml")
     buildFeatures {
         viewBinding = true
