@@ -1,0 +1,66 @@
+name: Build Dopamine Diet APK
+run-name: Final Phase 5 Kotlin verification
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'DopamineDiet/**'
+      - '.github/workflows/build-dopamine-diet-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Dopamine Diet debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          accept-android-sdk-licenses: true
+
+      - name: Install Android platform and build tools
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Make Gradle wrapper executable
+        working-directory: DopamineDiet
+        run: chmod +x ./gradlew
+
+      - name: Run Kotlin unit tests
+        working-directory: DopamineDiet
+        run: ./gradlew --no-daemon :core-model:test :core-detect:test
+
+      - name: Build diagnostic spike app
+        working-directory: DopamineDiet
+        run: ./gradlew --no-daemon :spike:assembleDebug
+
+      - name: Build production APK
+        working-directory: DopamineDiet
+        run: ./gradlew --no-daemon :app:assembleDebug
+
+      - name: Rename APK
+        run: cp "DopamineDiet/app/build/outputs/apk/debug/app-debug.apk" "Dopamine Diet.apk"
+
+      - name: Publish APK as GitHub Release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dopamine-diet-build-${{ github.run_number }}
+          name: Dopamine Diet APK build ${{ github.run_number }}
+          body: Automated Dopamine Diet debug APK build from commit ${{ github.sha }}.
+          prerelease: true
+          make_latest: false
+          files: Dopamine Diet.apk

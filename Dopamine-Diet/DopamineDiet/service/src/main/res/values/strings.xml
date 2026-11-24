@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_label">Dopamine Diet</string>
+    <string name="service_description">Counts the Instagram Reels and YouTube Shorts you swipe through. Reads scrolling signals and positions only; never reads captions, messages, profile details or usernames. All counts stay on this phone.</string>
+    <string name="overlay_description">%1$d reels today. Drag to move.</string>
+    <string name="widget_label">Dopamine Diet</string>
+    <string name="widget_description">Dopamine Diet daily Reels and Shorts counter.</string>
+    <string name="widget_reels_today">reels today</string>
+</resources>
