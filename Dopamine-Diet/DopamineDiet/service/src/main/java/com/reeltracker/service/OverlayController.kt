@@ -31,7 +31,6 @@ internal class OverlayController(
     private val wm = service.getSystemService(WindowManager::class.java)
     private val prefs = service.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private var view: BrainCounterView? = null
-    private var params: WindowManager.LayoutParams? = null
     private var job: Job? = null
 
     fun show(count: Flow<Int>) {
@@ -57,7 +56,6 @@ internal class OverlayController(
             return // window token gone (service unbinding); nothing to show
         }
         view = v
-        params = lp
         v.setOnTouchListener(DragListener(v, lp))
         job = scope.launch { count.distinctUntilChanged().collect { v.setCount(it) } }
     }
@@ -67,7 +65,6 @@ internal class OverlayController(
         job = null
         view?.let { runCatching { wm.removeView(it) } }
         view = null
-        params = null
     }
 
     // ------------------------------------------------------------------ position
