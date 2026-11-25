@@ -35,10 +35,23 @@ jobs:
       - name: Build unified debug APK
         run: gradle -p UnifiedApp :app:assembleDebug --stacktrace --console=plain
 
+      - name: Locate generated APK
+        shell: bash
+        run: |
+          echo "Searching for APK files under UnifiedApp..."
+          find UnifiedApp -type f -name "*.apk" -print
+          APK_COUNT=$(find UnifiedApp -type f -name "*.apk" | wc -l)
+          echo "APK_COUNT=$APK_COUNT"
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "::error::Gradle reported success, but no APK file exists under UnifiedApp."
+            exit 1
+          fi
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Focus-Duo-debug-apk
-          path: UnifiedApp/app/build/outputs/apk/debug/*.apk
+          path: |
+            UnifiedApp/**/*.apk
           if-no-files-found: error
           retention-days: 14
