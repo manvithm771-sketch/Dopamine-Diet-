@@ -110,7 +110,7 @@ class LegacyDriftImporterTest {
             context,
             MindfulNativeDatabase::class.java,
             "mindful_native.db"
-        ).build()
+        ).addMigrations(MindfulNativeDatabase.MIGRATION_1_2).build()
         try {
             native.openHelper.writableDatabase.execSQL(
                 """CREATE TRIGGER force_legacy_import_failure
