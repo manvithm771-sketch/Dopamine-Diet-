@@ -21,7 +21,8 @@ object NativeDatabaseProvider {
                 context.applicationContext,
                 MindfulNativeDatabase::class.java,
                 DATABASE_NAME
-            ).build().also { instance = it }
+            ).addMigrations(MindfulNativeDatabase.MIGRATION_1_2)
+                .build().also { instance = it }
         }
     }
 
