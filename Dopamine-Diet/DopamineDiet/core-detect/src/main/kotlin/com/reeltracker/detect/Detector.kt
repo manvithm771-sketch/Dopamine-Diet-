@@ -20,9 +20,6 @@ class Detector(
     private var pinned: DetectionStrategy? = null
     private val recent = ArrayDeque<UiSignal>(RECENT)
 
-    /** The last [RECENT] signals, for dumping on enter/exit. */
-    fun recentSignals(): List<UiSignal> = recent.toList()
-
     fun reset() {
         inReels = false
         activePackage = null
