@@ -1,7 +1,5 @@
 # Dopamine Diet
 
-<img src="app/src/main/res/drawable-nodpi/ic_launcher_brain.png" width="96" align="right" alt="Dopamine Diet icon">
-
 An Android app that counts the Instagram Reels you swipe through, and shows you a brain that rots
 a little more with every one.
 
@@ -204,8 +202,7 @@ The detector already picks the first strategy whose `supports()` accepts the sig
   transparent PNGs cut from the original sprite sheet; replace any file with one of the same name.
 - **Overlay size and default position:** `W`, `H` and the brain constants in `BrainCounterView`;
   the default spot in `OverlayController.savedPosition()`.
-- **Launcher icon:** `app/src/main/res/drawable-nodpi/ic_launcher_*.png`, an adaptive icon
-  (background, foreground, and a monochrome layer for themed icons).
+- **Launcher icon:** an adaptive icon using the existing `brain_stage_0` sprite for its foreground and monochrome layer.
 
 ---
 
