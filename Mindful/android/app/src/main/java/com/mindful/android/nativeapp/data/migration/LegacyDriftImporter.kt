@@ -128,7 +128,7 @@ class LegacyDriftImporter(private val context: Context) {
                 context.applicationContext,
                 MindfulNativeDatabase::class.java,
                 targetDatabaseName
-            ).build()
+            ).addMigrations(MindfulNativeDatabase.MIGRATION_1_2).build()
         } catch (error: Throwable) {
             source.close()
             throw error
