@@ -75,10 +75,6 @@ data class NativeMindfulSettingsEntity(
     @ColumnInfo(name = "use_dynamic_colors", defaultValue = "0") val useDynamicColors: Boolean = false,
     @ColumnInfo(name = "default_home_tab", defaultValue = "0") val defaultHomeTab: Long = 0,
     @ColumnInfo(name = "usage_history_weeks", defaultValue = "52") val usageHistoryWeeks: Long = 52,
-    // Legacy database column retained only for safe migration of existing user data.
-    @ColumnInfo(name = "left_emergency_passes", defaultValue = "3") val leftEmergencyPasses: Long = 3,
-    // Legacy database column retained only for safe migration of existing user data.
-    @ColumnInfo(name = "last_emergency_used", defaultValue = "-62167219200000") val lastEmergencyUsedEpochMillis: Long = -62167219200000L,
     @ColumnInfo(name = "is_onboarding_done", defaultValue = "0") val isOnboardingDone: Boolean = false,
     @ColumnInfo(name = "app_version", defaultValue = "''") val appVersion: String = ""
 )
