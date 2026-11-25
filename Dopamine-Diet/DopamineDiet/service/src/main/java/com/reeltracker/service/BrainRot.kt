@@ -35,9 +35,6 @@ object BrainRot {
         return if (next < STAGES) THRESHOLDS[next] - count else null
     }
 
-    /** From stage 4 the brain is green: drips and drops switch from sweat to slime. */
+    /** From stage 4 the brain is green. */
     fun isSlimy(stage: Int) = stage >= 4
-
-    /** Smoke rises off the last two stages. */
-    fun isSmoking(stage: Int) = stage >= 5
 }
