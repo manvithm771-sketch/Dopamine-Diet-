@@ -11,13 +11,11 @@ import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
-import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
-import kotlin.random.Random
 
 /**
  * The floating counter: a brain that rots as today's reel count climbs.
@@ -35,7 +33,6 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
 
     private val brain = ImageView(context)
     private val badge = TextView(context)
-    private val fx = FrameLayout(context) // one-shot effects are added and removed here
     private var count: Int? = null
     private var stage = 0
     private val breathing: AnimatorSet
@@ -52,8 +49,6 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
         })
         // Squish from the bottom, like it is sitting on something.
         brain.post { brain.pivotX = brain.width / 2f; brain.pivotY = brain.height * 0.85f }
-
-        addView(fx, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
         badge.apply {
             setTextColor(Color.WHITE)
@@ -91,7 +86,6 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
 
     override fun onDetachedFromWindow() {
         breathing.cancel()
-        fx.removeAllViews()
         super.onDetachedFromWindow()
     }
 
@@ -133,7 +127,6 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
     private fun reelCounted() {
         squish()
         popBadge()
-        dropFrom(R.drawable.fx_drop_blue)
     }
 
     private fun stageUp(newStage: Int) {
@@ -144,7 +137,6 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
             applyStage(newStage)
             brain.animate().alpha(1f).setDuration(220).start()
         }.start()
-        dropFrom(if (BrainRot.isSlimy(newStage)) R.drawable.fx_drip_green else R.drawable.fx_drip_blue, big = true)
     }
 
     private fun applyStage(newStage: Int) {
@@ -176,31 +168,6 @@ internal class BrainCounterView(context: Context) : FrameLayout(context) {
         badge.scaleX = 1.3f
         badge.scaleY = 1.3f
         badge.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(OvershootInterpolator(3f)).start()
-    }
-
-    /** A drop falls from under the brain and fades; slime falls slower and stretches. */
-    private fun dropFrom(sprite: Int, big: Boolean = false) {
-        val w = dp(if (big) 30 else 10)
-        val h = dp(if (big) 28 else 16)
-        val drop = ImageView(context).apply { setImageResource(sprite) }
-        val left = dp(W / 2) - w / 2 + if (big) 0 else Random.nextInt(-dp(16), dp(16))
-        fx.addView(drop, LayoutParams(w, h).apply {
-            gravity = Gravity.TOP or Gravity.START
-            leftMargin = left
-            topMargin = dp(BRAIN_TOP + BRAIN_H - 16)
-        })
-        drop.alpha = 0f
-        drop.pivotY = 0f
-        drop.animate()
-            .alpha(1f)
-            .translationY(dp(if (big) 8f else 18f))
-            .scaleY(if (BrainRot.isSlimy(stage)) 1.35f else 1f)
-            .setDuration(if (big) 700 else 520)
-            .setInterpolator(AccelerateInterpolator())
-            .withEndAction {
-                drop.animate().alpha(0f).setDuration(220).withEndAction { fx.removeView(drop) }.start()
-            }
-            .start()
     }
 
     // ------------------------------------------------------------------ helpers
