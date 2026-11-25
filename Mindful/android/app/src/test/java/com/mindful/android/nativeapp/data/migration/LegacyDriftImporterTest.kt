@@ -64,12 +64,12 @@ class LegacyDriftImporterTest {
             assertEquals(1_735_689_601_000L, readLong(target, "crash_logs_table", "time_stamp"))
             assertEquals(1_735_689_602_000L, readLong(target, "focus_mode_table", "last_time_streak_updated"))
             assertEquals(1_735_689_603_000L, readLong(target, "focus_sessions_table", "start_date_time"))
-            assertEquals(1_735_689_604_000L, readLong(target, "mindful_settings_table", "last_emergency_used"))
             assertEquals("-62167219200000", readDefault(target, "app_usage_table", "date"))
             assertEquals("-62167219200000", readDefault(target, "crash_logs_table", "time_stamp"))
             assertEquals("-62167219200000", readDefault(target, "focus_mode_table", "last_time_streak_updated"))
             assertEquals("-62167219200000", readDefault(target, "focus_sessions_table", "start_date_time"))
-            assertEquals("-62167219200000", readDefault(target, "mindful_settings_table", "last_emergency_used"))
+            assertFalse(hasColumn(target, "mindful_settings_table", "left_emergency_passes"))
+            assertFalse(hasColumn(target, "mindful_settings_table", "last_emergency_used"))
         } finally {
             target.close()
         }
@@ -216,6 +216,16 @@ class LegacyDriftImporterTest {
             check(cursor.moveToFirst())
             return cursor.getLong(0)
         }
+    }
+
+    private fun hasColumn(db: SQLiteDatabase, table: String, column: String): Boolean {
+        db.rawQuery("PRAGMA table_info(`$table`)", null).use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameIndex) == column) return true
+            }
+        }
+        return false
     }
 
     private fun readDefault(db: SQLiteDatabase, table: String, column: String): String? {
