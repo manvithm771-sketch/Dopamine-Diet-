@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ReelDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertEvent(event: ReelEvent): Long
+    suspend fun insertEvent(event: ReelEvent)
 
     @Query("SELECT COUNT(*) FROM reel_events WHERE wallClock >= :since")
     fun countSince(since: Long): Flow<Int>
