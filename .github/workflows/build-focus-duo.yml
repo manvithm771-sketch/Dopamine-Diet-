@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -36,22 +36,26 @@ jobs:
         run: gradle -p UnifiedApp :app:assembleDebug --stacktrace --console=plain
 
       - name: Locate generated APK
+        id: apk
         shell: bash
         run: |
           echo "Searching for APK files under UnifiedApp..."
           find UnifiedApp -type f -name "*.apk" -print
-          APK_COUNT=$(find UnifiedApp -type f -name "*.apk" | wc -l)
-          echo "APK_COUNT=$APK_COUNT"
-          if [ "$APK_COUNT" -eq 0 ]; then
-            echo "::error::Gradle reported success, but no APK file exists under UnifiedApp."
+          APK_PATH=$(find UnifiedApp -type f -name "*.apk" -print -quit)
+          if [ -z "$APK_PATH" ]; then
+            echo "::error::Gradle completed but no APK file exists under UnifiedApp."
             exit 1
           fi
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "Found APK: $APK_PATH"
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Focus-Duo-debug-apk
-          path: |
-            UnifiedApp/**/*.apk
-          if-no-files-found: error
-          retention-days: 14
+      - name: Publish APK as a GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="focus-duo-debug-${{ github.run_number }}-${{ github.run_attempt }}"
+          gh release create "$TAG" "${{ steps.apk.outputs.apk_path }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Focus Duo Debug APK - Run ${{ github.run_number }}" \
+            --notes "Automatically built debug APK from commit ${{ github.sha }}."
