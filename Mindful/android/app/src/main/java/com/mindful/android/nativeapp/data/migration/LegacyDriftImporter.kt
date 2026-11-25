@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteException
 import android.util.Base64
 import androidx.room.Room
 import androidx.room.withTransaction
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mindful.android.nativeapp.data.local.MindfulNativeDatabase
 import java.io.File
 import java.security.MessageDigest
@@ -82,7 +83,7 @@ class LegacyDriftImporter(private val context: Context) {
         TableSpec("focus_mode_table", setOf("id", "session_type", "longest_streak", "current_streak", "last_time_streak_updated"), "id"),
         TableSpec("focus_profile_table", setOf("session_type", "session_duration", "enforce_session", "should_start_dnd", "distracting_apps"), "session_type"),
         TableSpec("focus_sessions_table", setOf("id", "type", "state", "start_date_time", "duration_secs", "reflection"), "id"),
-        TableSpec("mindful_settings_table", setOf("id", "theme_mode", "accent_color", "username", "locale_code", "use_amoled_dark", "use_dynamic_colors", "default_home_tab", "usage_history_weeks", "left_emergency_passes", "last_emergency_used", "is_onboarding_done", "app_version"), "id"),
+        TableSpec("mindful_settings_table", setOf("id", "theme_mode", "accent_color", "username", "locale_code", "use_amoled_dark", "use_dynamic_colors", "default_home_tab", "usage_history_weeks", "is_onboarding_done", "app_version"), "id"),
         TableSpec("restriction_groups_table", setOf("id", "group_name", "timer_sec", "distracting_apps"), "id"),
         TableSpec("shared_unique_data_table", setOf("id", "excluded_apps"), "id"),
         TableSpec("wellbeing_table", setOf("id", "allowed_shorts_time_sec", "blocked_features", "block_nsfw_sites", "blocked_websites", "nsfw_websites"), "id")
@@ -157,13 +158,14 @@ class LegacyDriftImporter(private val context: Context) {
                             "SELECT * FROM `${spec.name}` ORDER BY ${spec.orderBy}", null
                         )
                         val sourceCount = sourceCursor.count
-                        val sourceDigest = digest(sourceCursor)
+                        val targetColumns = tableColumns(target, spec.name)
+                        val sourceDigest = digest(sourceCursor, targetColumns)
 
                         val targetCursor = target.query(
                             "SELECT * FROM `${spec.name}` ORDER BY ${spec.orderBy}"
                         )
                         val targetCount = targetCursor.count
-                        val targetDigest = digest(targetCursor)
+                        val targetDigest = digest(targetCursor, targetColumns)
 
                         check(expectedCounts.getInt(spec.name) == sourceCount &&
                             expectedCounts.getInt(spec.name) == targetCount) {
@@ -188,11 +190,12 @@ class LegacyDriftImporter(private val context: Context) {
                 val sourceDigests = linkedMapOf<String, String>()
                 val rowCounts = linkedMapOf<String, Int>()
                 for (spec in tables) {
+                    val targetColumns = tableColumns(target, spec.name)
                     val cursor = source.rawQuery("SELECT * FROM `${spec.name}` ORDER BY ${spec.orderBy}", null)
                     val count = try {
                         var copied = 0
                         while (cursor.moveToNext()) {
-                            val values = cursor.toContentValues()
+                            val values = cursor.toContentValues(targetColumns)
                             val inserted = target.insert(spec.name, SQLiteDatabase.CONFLICT_ABORT, values)
                             check(inserted != -1L) { "Insert failed for ${spec.name}." }
                             copied++
@@ -202,9 +205,10 @@ class LegacyDriftImporter(private val context: Context) {
                         cursor.close()
                     }
                     rowCounts[spec.name] = count
-                    sourceDigests[spec.name] = digest(source.rawQuery(
-                        "SELECT * FROM `${spec.name}` ORDER BY ${spec.orderBy}", null
-                    ))
+                    sourceDigests[spec.name] = digest(
+                        source.rawQuery("SELECT * FROM `${spec.name}` ORDER BY ${spec.orderBy}", null),
+                        targetColumns
+                    )
                 }
 
                 val targetDigests = linkedMapOf<String, String>()
@@ -220,9 +224,10 @@ class LegacyDriftImporter(private val context: Context) {
                     check(count == rowCounts.getValue(spec.name)) {
                         "Row-count verification failed for ${spec.name}: expected ${rowCounts[spec.name]}, found $count."
                     }
-                    targetDigests[spec.name] = digest(target.query(
-                        "SELECT * FROM `${spec.name}` ORDER BY ${spec.orderBy}"
-                    ))
+                    targetDigests[spec.name] = digest(
+                        target.query("SELECT * FROM `${spec.name}` ORDER BY ${spec.orderBy}"),
+                        tableColumns(target, spec.name)
+                    )
                     check(sourceDigests[spec.name] == targetDigests[spec.name]) {
                         "Content verification failed for ${spec.name}; native import rolled back."
                     }
@@ -266,16 +271,30 @@ class LegacyDriftImporter(private val context: Context) {
             } finally {
                 cursor.close()
             }
-            check(actualColumns == spec.columns) {
-                "Legacy schema mismatch in ${spec.name}. Expected ${spec.columns.sorted()}, found ${actualColumns.sorted()}."
+            check(actualColumns.containsAll(spec.columns)) {
+                "Legacy schema mismatch in ${spec.name}. Required ${spec.columns.sorted()}, found ${actualColumns.sorted()}."
             }
         }
     }
 
-    private fun Cursor.toContentValues(): ContentValues {
+    private fun tableColumns(database: SupportSQLiteDatabase, table: String): Set<String> {
+        val cursor = database.query("PRAGMA table_info(`$table`)")
+        return try {
+            buildSet {
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+            }
+        } finally {
+            cursor.close()
+        }
+    }
+
+    private fun Cursor.toContentValues(allowedColumns: Set<String>): ContentValues {
         val values = ContentValues(columnCount)
         for (index in 0 until columnCount) {
             val name = getColumnName(index)
+            if (name !in allowedColumns) continue
             when (getType(index)) {
                 Cursor.FIELD_TYPE_NULL -> values.putNull(name)
                 Cursor.FIELD_TYPE_INTEGER -> values.put(name, getLong(index))
@@ -287,10 +306,12 @@ class LegacyDriftImporter(private val context: Context) {
         return values
     }
 
-    private fun digest(cursor: Cursor): String {
+    private fun digest(cursor: Cursor, includedColumns: Set<String>? = null): String {
         cursor.use { rows ->
             val sha = MessageDigest.getInstance("SHA-256")
-            val order = rows.columnNames.indices.sortedBy { rows.getColumnName(it) }
+            val order = rows.columnNames.indices
+                .filter { includedColumns == null || rows.getColumnName(it) in includedColumns }
+                .sortedBy { rows.getColumnName(it) }
             while (rows.moveToNext()) {
                 for (index in order) {
                     val name = rows.getColumnName(index)
