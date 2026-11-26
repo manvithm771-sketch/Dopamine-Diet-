@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mindful.android.nativeapp.data.local.NativeDatabaseProvider
+import com.mindful.android.nativeapp.data.local.NativeAppUsageSummary
 import com.mindful.android.nativeapp.data.local.entity.NativeAppRestrictionEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeWellbeingEntity
@@ -299,7 +300,7 @@ fun DopamineDietScreenTimeDestination(
 
 @Composable
 private fun AllScreenTimeAppsScreen(
-    appRows: List<com.mindful.android.nativeapp.data.local.entity.NativeAppUsageEntity>,
+    appRows: List<NativeAppUsageSummary>,
     packageManager: PackageManager,
     onBack: () -> Unit
 ) {
@@ -362,7 +363,7 @@ private fun ScreenStatisticsIcon(modifier: Modifier = Modifier) {
 private fun ScreenTimeInsightsScreen(
     annualTotal: Long,
     weeklyTotals: List<Long>,
-    appRows: List<com.mindful.android.nativeapp.data.local.entity.NativeAppUsageEntity>,
+    appRows: List<NativeAppUsageSummary>,
     packageManager: PackageManager,
     onBack: () -> Unit
 ) {
