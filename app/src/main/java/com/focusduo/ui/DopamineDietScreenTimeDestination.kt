@@ -607,9 +607,10 @@ private fun WeekdayScreenTimeChart(
     val maxSeconds = 15L * 60L * 60L
     val weekEndMillis = (Calendar.getInstance().apply { timeInMillis = weekStartMillis }).apply { add(Calendar.DAY_OF_YEAR, 6) }.timeInMillis
     val dateFormat = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
+
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Daily breakdown", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
@@ -628,15 +629,20 @@ private fun WeekdayScreenTimeChart(
                     modifier = Modifier.clip(CircleShape).clickable(enabled = canGoNext, onClick = onNext).padding(horizontal = 8.dp))
             }
         }
+
+        // Reference-matched weekday chart: dark canvas, dashed hour guides,
+        // lavender Monday bar, muted gradient bars, and a right-side hour axis.
         Row(
             modifier = Modifier.fillMaxWidth().height(244.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Canvas(modifier = Modifier.weight(1f).fillMaxSize().padding(end = 12.dp)) {
+            Canvas(
+                modifier = Modifier.weight(1f).fillMaxSize().padding(end = 12.dp)
+            ) {
                 val chartHeight = size.height
                 val chartWidth = size.width
-                val gridValues = listOf(15f, 12f, 8f, 4f, 0f)
-                gridValues.forEach { hours ->
+                val gridHours = listOf(12f, 8f, 4f)
+                gridHours.forEach { hours ->
                     val y = chartHeight - (hours / 15f) * chartHeight
                     drawLine(
                         color = Color(0xFF343640),
@@ -648,16 +654,20 @@ private fun WeekdayScreenTimeChart(
                 }
                 val slot = chartWidth / 7f
                 val barWidth = slot * 0.62f
-                dayTotals.forEachIndexed { index, seconds ->
+                dayTotals.take(7).forEachIndexed { index, seconds ->
                     val fraction = (seconds.toFloat() / maxSeconds.toFloat()).coerceIn(0f, 1f)
                     if (fraction > 0f) {
                         val barHeight = chartHeight * fraction
                         val left = index * slot + (slot - barWidth) / 2f
                         drawRoundRect(
                             brush = if (index == 0) {
-                                Brush.verticalGradient(listOf(Color(0xFFB6BFFF), Color(0xFF777D9E)))
+                                Brush.verticalGradient(
+                                    listOf(Color(0xFFB6BFFF), Color(0xFF777D9E))
+                                )
                             } else {
-                                Brush.verticalGradient(listOf(Color(0xFF45495B), Color(0xFF242630)))
+                                Brush.verticalGradient(
+                                    listOf(Color(0xFF45495B), Color(0xFF242630))
+                                )
                             },
                             topLeft = Offset(left, chartHeight - barHeight),
                             size = Size(barWidth, barHeight),
@@ -667,7 +677,7 @@ private fun WeekdayScreenTimeChart(
                 }
             }
             Column(
-                modifier = Modifier.fillMaxSize().width(42.dp),
+                modifier = Modifier.width(42.dp).fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.End
             ) {
