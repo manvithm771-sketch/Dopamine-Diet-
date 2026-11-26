@@ -175,17 +175,6 @@ fun DopamineDietScrollDestination() {
                 }
             }
         }
-        item {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = ScrollCard)) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Brain status", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Your activity is counted locally on this phone.", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
-                    TextButton(onClick = { requestBrainWidget(context) }) { Text("Add brain widget", color = ScrollViolet) }
-                    TextButton(onClick = viewModel::exportCapture) { Text("Export debug capture", color = ScrollMuted) }
-                    exportMessage?.let { Text(it, color = ScrollMuted, style = MaterialTheme.typography.bodySmall) }
-                }
-            }
-        }
         item { lastEventAt?.let { Text("Last activity: ${java.text.DateFormat.getTimeInstance(if (is24h) java.text.DateFormat.SHORT else java.text.DateFormat.SHORT).format(java.util.Date(it))}", color = ScrollMuted, style = MaterialTheme.typography.bodySmall) } }
     }
 }
