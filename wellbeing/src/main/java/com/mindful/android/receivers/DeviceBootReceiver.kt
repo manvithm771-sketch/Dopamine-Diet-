@@ -15,6 +15,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.content.ContextCompat
+import com.mindful.android.services.tracking.MindfulTrackerService
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper
 import com.mindful.android.helpers.device.NotificationHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
@@ -47,6 +49,14 @@ class DeviceBootReceiver : BroadcastReceiver() {
 
                     // Restore native periodic usage refresh after reboot or app update.
                     com.mindful.android.nativeapp.work.NativeUsageRefreshScheduler.schedule(context)
+
+                    // Start the tracker so it can reload saved Room app-blocking rules.
+                    ContextCompat.startForegroundService(
+                        context,
+                        Intent(context, MindfulTrackerService::class.java).setAction(
+                            MindfulTrackerService.ACTION_RESTORE_SAVED_RESTRICTIONS
+                        )
+                    )
                 } catch (e: Exception) {
                     SharedPrefsHelper.insertCrashLogToPrefs(context, e)
                     Log.e(TAG, "onReceive: Something went wrong!", e)
