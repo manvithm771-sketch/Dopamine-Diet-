@@ -2,7 +2,11 @@ package com.mindful.android.services.tracking
 
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.app.AppOpsManager
 import android.os.IBinder
+import android.os.Process
+import android.provider.Settings
 import android.util.Log
 import androidx.annotation.WorkerThread
 import com.mindful.android.AppConstants
@@ -10,11 +14,26 @@ import com.mindful.android.R
 import com.mindful.android.generics.ServiceBinder
 import com.mindful.android.helpers.device.NotificationHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
+import com.mindful.android.nativeapp.data.local.NativeDatabaseProvider
+import com.mindful.android.nativeapp.data.migration.NativeStartupCoordinator
+import com.mindful.android.nativeapp.restrictions.buildNativeRestrictionRules
+import com.mindful.android.nativeapp.restrictions.filterNativeRestrictionInputs
+import com.mindful.android.nativeapp.restrictions.protectedSystemPackageNames
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MindfulTrackerService : Service() {
     companion object {
         private const val TAG = "Mindful.MindfulTrackerService"
+        const val ACTION_RESTORE_SAVED_RESTRICTIONS =
+            "com.mindful.android.action.restoreSavedAppRestrictions"
     }
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val mBinder = ServiceBinder(this@MindfulTrackerService)
 
@@ -42,14 +61,70 @@ class MindfulTrackerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
-        if (intent?.action == ServiceBinder.ACTION_START_MINDFUL_SERVICE) {
-            startFgService()
-            return START_STICKY
+        when (intent?.action) {
+            ServiceBinder.ACTION_START_MINDFUL_SERVICE -> {
+                startFgService()
+                return START_STICKY
+            }
+            ACTION_RESTORE_SAVED_RESTRICTIONS,
+            null -> {
+                // Android may recreate a START_STICKY service with a null intent.
+                // Restore the durable Room rules instead of stopping with empty in-memory state.
+                startFgService()
+                restoreSavedRestrictions()
+                return START_STICKY
+            }
+            else -> {
+                stopIfNoUsage()
+                return START_NOT_STICKY
+            }
         }
+    }
 
-        stopIfNoUsage()
-        return START_NOT_STICKY
+    private fun restoreSavedRestrictions() {
+        serviceScope.launch {
+            try {
+                NativeStartupCoordinator.prepare(applicationContext)
+                if (!hasUsageAccess() || !Settings.canDrawOverlays(applicationContext)) {
+                    Log.w(TAG, "restoreSavedRestrictions: Required Usage Access or Overlay permission is missing")
+                    stopIfNoUsage()
+                    return@launch
+                }
+
+                val dashboard = NativeDatabaseProvider.get(applicationContext).nativeDashboardDao()
+                val appRows = dashboard.observeAppRestrictions().first()
+                val groupRows = dashboard.observeRestrictionGroups().first()
+                val installedPackages = packageManager
+                    .getInstalledApplications(PackageManager.MATCH_ALL)
+                    .mapTo(mutableSetOf()) { it.packageName }
+                val filtered = filterNativeRestrictionInputs(
+                    appRows = appRows,
+                    groupRows = groupRows,
+                    installedPackageNames = installedPackages,
+                    protectedPackageNames = protectedSystemPackageNames(applicationContext)
+                )
+                val rules = buildNativeRestrictionRules(filtered.apps, filtered.groups)
+                restrictionManager.updateRestrictions(rules.apps, rules.groups)
+                Log.i(
+                    TAG,
+                    "restoreSavedRestrictions: Restored ${rules.apps.size} app rules and ${rules.groups.size} group rules"
+                )
+            } catch (error: Exception) {
+                Log.e(TAG, "restoreSavedRestrictions: Could not restore saved app-blocking rules", error)
+                SharedPrefsHelper.insertCrashLogToPrefs(applicationContext, error)
+                stopIfNoUsage()
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun hasUsageAccess(): Boolean {
+        val appOps = getSystemService(APP_OPS_SERVICE) as AppOpsManager
+        return appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            packageName
+        ) == AppOpsManager.MODE_ALLOWED
     }
 
     private fun startFgService() {
@@ -135,6 +210,7 @@ class MindfulTrackerService : Service() {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
         Log.d(TAG, "onDestroy: TRACKER service destroyed successfully")
         super.onDestroy()
     }
