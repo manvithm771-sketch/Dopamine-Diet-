@@ -54,23 +54,12 @@ internal class NativeUsageRepository(
             Context.NETWORK_STATS_SERVICE
         ) as NetworkStatsManager
 
-        // Prefer Android's calendar-aligned daily aggregate for the current day.
-        // UsageEvents are retained for a shorter window and their activity transitions can
-        // be incomplete on some Android builds, so use them only as a fallback.
-        val aggregatedScreenUsage = ScreenUsageHelper.fetchAggregatedUsageForInterval(
+        // Use the same UsageEvents interval calculation as Mindful.
+        val screenUsage = ScreenUsageHelper.fetchUsageForInterval(
             usageStatsManager,
             dayStartEpochMillis,
-            endEpochMillis,
-            strict = true
+            endEpochMillis
         )
-        val screenUsage = aggregatedScreenUsage.ifEmpty {
-            ScreenUsageHelper.fetchUsageForInterval(
-                usageStatsManager,
-                dayStartEpochMillis,
-                endEpochMillis,
-                strict = true
-            )
-        }
         val mobileUsage = NetworkUsageHelper.fetchMobileUsageForInterval(
             networkStatsManager,
             dayStartEpochMillis,
@@ -123,11 +112,10 @@ internal class NativeUsageRepository(
         val manager = appContext.getSystemService(
             Context.USAGE_STATS_SERVICE
         ) as UsageStatsManager
-        val screenUsage = ScreenUsageHelper.fetchAggregatedUsageForInterval(
+        val screenUsage = ScreenUsageHelper.fetchUsageForInterval(
             manager,
             dayStartEpochMillis,
-            dayEndEpochMillis,
-            strict = true
+            dayEndEpochMillis
         )
 
         // Empty can mean no recorded use or that Android no longer retains the day.
