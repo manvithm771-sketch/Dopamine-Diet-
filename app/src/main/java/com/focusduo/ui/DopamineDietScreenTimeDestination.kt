@@ -39,6 +39,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mindful.android.nativeapp.data.local.NativeDatabaseProvider
+import com.mindful.android.nativeapp.data.local.entity.NativeAppRestrictionEntity
+import com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity
+import com.mindful.android.nativeapp.data.local.entity.NativeWellbeingEntity
+import com.mindful.android.nativeapp.ui.NativeHomeScreen
 import java.util.Calendar
 
 private val TimeBg = Color(0xFF08090E)
@@ -49,9 +53,34 @@ private val TimeViolet = Color(0xFF9B6DFF)
 private val TimeMint = Color(0xFF36DFA0)
 
 @Composable
-fun DopamineDietScreenTimeDestination() {
+fun DopamineDietScreenTimeDestination(
+    onSaveAppRestriction: (NativeAppRestrictionEntity) -> Unit,
+    onDeleteAppRestriction: (String) -> Unit,
+    onSaveRestrictionGroup: (NativeRestrictionGroupEntity) -> Unit,
+    onDeleteRestrictionGroup: (Long) -> Unit,
+    onSaveWellbeing: (NativeWellbeingEntity) -> Unit
+) {
     val context = LocalContext.current
     val database = remember(context) { NativeDatabaseProvider.get(context) }
+    var openedBlockingTool by remember { mutableStateOf<String?>(null) }
+
+    if (openedBlockingTool != null) {
+        NativeHomeScreen(
+            dao = database.nativeDashboardDao(),
+            focusDao = database.nativeFocusDao(),
+            onSaveAppRestriction = onSaveAppRestriction,
+            onDeleteAppRestriction = onDeleteAppRestriction,
+            onSaveRestrictionGroup = onSaveRestrictionGroup,
+            onDeleteRestrictionGroup = onDeleteRestrictionGroup,
+            onSaveWellbeing = onSaveWellbeing,
+            startOnApps = openedBlockingTool == "apps",
+            startOnWebsiteBlock = openedBlockingTool == "websites",
+            showInternalNavigation = false,
+            forceDopamineDietTheme = true,
+            onStandaloneBack = { openedBlockingTool = null }
+        )
+        return
+    }
 
     val yearRange = remember {
         val currentWeek = Calendar.getInstance().apply {
@@ -214,6 +243,45 @@ fun DopamineDietScreenTimeDestination() {
                     )
                 }
             }
+        }
+
+        item {
+            BlockingActionCard(
+                title = "App Blocking",
+                description = "Choose apps and manage their timers, launch limits and restriction groups.",
+                onClick = { openedBlockingTool = "apps" }
+            )
+        }
+        item {
+            BlockingActionCard(
+                title = "Website Blocking",
+                description = "Manage blocked websites, adult-site rules and short-form content restrictions.",
+                onClick = { openedBlockingTool = "websites" }
+            )
+        }
+    }
+}
+
+@Composable
+private fun BlockingActionCard(
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = TimeCard)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(description, color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+            }
+            Text("›", color = TimeMuted, style = MaterialTheme.typography.headlineMedium)
         }
     }
 }
