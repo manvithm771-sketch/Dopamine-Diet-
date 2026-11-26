@@ -67,6 +67,7 @@ fun DopamineDietSettingsDestination(
             startOnFocus = openedTool == "focus",
             startOnApps = openedTool == "apps",
             showInternalNavigation = false,
+            forceDopamineDietTheme = true,
             onStandaloneBack = { openedTool = null }
         )
         return
