@@ -49,7 +49,11 @@ internal class NativeUsageRefreshWorker(
                         add(Calendar.DAY_OF_YEAR, 1)
                     }.timeInMillis
 
-                    when (repository.refreshHistoricalScreenTimeDay(start, end)) {
+                    // Mindful's original backfill calls getAppsUsageForInterval
+                    // for each complete day and stores screen time plus network
+                    // usage together. refreshDay uses the same copied native
+                    // helpers and writes the complete daily app-usage record.
+                    when (repository.refreshDay(start, end)) {
                         is NativeUsageRefreshResult.Updated -> Unit
                         NativeUsageRefreshResult.UsageAccessRequired -> return Result.success()
                     }
