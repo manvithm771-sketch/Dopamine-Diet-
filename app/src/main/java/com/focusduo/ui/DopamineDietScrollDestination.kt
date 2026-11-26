@@ -167,6 +167,7 @@ fun DopamineDietScrollDestination() {
                     ScrollCountRow("Today", totalToday)
                     ScrollCountRow("This week", usageOverview.thisWeek.total)
                     ScrollCountRow("This month", usageOverview.thisMonth.total)
+                    ScrollCountRow("Total", usageOverview.total.total)
                 }
             }
         }
