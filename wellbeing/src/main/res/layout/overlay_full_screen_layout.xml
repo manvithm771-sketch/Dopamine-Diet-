@@ -115,7 +115,7 @@
                                 android:clipToOutline="true"
                                 android:contentDescription="@string/app_name"
                                 android:padding="0dp"
-                                android:src="@mipmap/ic_launcher"
+                                android:src="@drawable/ic_dopamine_notification"
                                 tools:ignore="UnusedAttribute" />
 
                             <!--   App info column  -->

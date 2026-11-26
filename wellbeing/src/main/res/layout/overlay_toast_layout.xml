@@ -23,7 +23,7 @@
         android:clipToOutline="true"
         android:importantForAccessibility="no"
         android:scaleType="centerCrop"
-        android:src="@mipmap/ic_launcher"
+        android:src="@drawable/ic_dopamine_notification"
         tools:ignore="UnusedAttribute" />
 
     <LinearLayout
