@@ -26,7 +26,6 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import com.mindful.android.AppConstants
-import com.mindful.android.nativeapp.MainActivity
 import com.mindful.android.helpers.storage.SharedPrefsHelper
 import java.util.Locale
 
@@ -62,8 +61,13 @@ object NewActivitiesLaunchHelper {
      * @param activity The activity to use.
      */
     fun restartMindful(activity: Activity) {
-        val appIntent = Intent(activity, MainActivity::class.java)
-            .putExtra(AppConstants.INTENT_EXTRA_IS_SELF_RESTART, true)
+        val appIntent = activity.packageManager.getLaunchIntentForPackage(activity.packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            ?.putExtra(AppConstants.INTENT_EXTRA_IS_SELF_RESTART, true)
+            ?: run {
+                Log.e(TAG, "restartMindful: unified launcher activity is unavailable")
+                return
+            }
 
         val appPendingIntent = PendingIntent.getActivity(
             activity,
@@ -73,7 +77,7 @@ object NewActivitiesLaunchHelper {
         )
         val alarmManager = activity.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarmManager.set(AlarmManager.RTC, System.currentTimeMillis(), appPendingIntent)
-        Toast.makeText(activity, "Mindful is restarting", Toast.LENGTH_LONG).show()
+        Toast.makeText(activity, "Dopamine Diet is restarting", Toast.LENGTH_LONG).show()
         activity.finishAfterTransition()
     }
 
@@ -84,8 +88,13 @@ object NewActivitiesLaunchHelper {
      * database or preference handles remain open after a restore.
      */
     fun restartMindfulAfterRestore(activity: Activity) {
-        val appIntent = Intent(activity, MainActivity::class.java)
-            .putExtra(AppConstants.INTENT_EXTRA_IS_SELF_RESTART, true)
+        val appIntent = activity.packageManager.getLaunchIntentForPackage(activity.packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            ?.putExtra(AppConstants.INTENT_EXTRA_IS_SELF_RESTART, true)
+            ?: run {
+                Log.e(TAG, "restartMindfulAfterRestore: unified launcher activity is unavailable")
+                return
+            }
         val pendingIntent = PendingIntent.getActivity(
             activity,
             7319,
