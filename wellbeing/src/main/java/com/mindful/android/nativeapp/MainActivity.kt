@@ -176,6 +176,14 @@ open class MainActivity : ComponentActivity() {
         super.onResume()
         if (!onboardingStateLoaded || startupError != null) return
         refreshNativePermissionStatus()
+        // Retry historical Screen Time backfill immediately after returning from
+        // Android Usage Access settings; the first startup attempt may have lacked permission.
+        runCatching {
+            com.mindful.android.nativeapp.work.NativeUsageRefreshScheduler
+                .scheduleInitialRefresh(this)
+        }.onFailure { error ->
+            android.util.Log.w("Mindful", "Immediate usage refresh scheduling unavailable", error)
+        }
         // Resume any permission flow started when the user saved an app-blocking rule.
         resumePendingAppBlockingPermissionFlow()
         // Recheck on return from Android's special Usage Access settings screen.
