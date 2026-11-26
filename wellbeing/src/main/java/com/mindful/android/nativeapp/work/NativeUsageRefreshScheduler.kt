@@ -15,25 +15,30 @@ internal object NativeUsageRefreshScheduler {
     /**
      * Queue an immediate pass so the 52-week history backfill does not wait
      * for the first hourly periodic-work window after installation or upgrade.
-     * KEEP avoids starting duplicate backfills while one is already running.
      */
     fun schedule(context: Context) {
-        val workManager = WorkManager.getInstance(context.applicationContext)
-
-        workManager.enqueueUniqueWork(
-            INITIAL_REFRESH_WORK_NAME,
-            ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<NativeUsageRefreshWorker>().build()
-        )
+        scheduleInitialRefresh(context)
 
         val request = PeriodicWorkRequestBuilder<NativeUsageRefreshWorker>(
             1,
             TimeUnit.HOURS
         ).build()
-        workManager.enqueueUniquePeriodicWork(
+        WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
             UNIQUE_WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
             request
+        )
+    }
+
+    /**
+     * Retry immediately when the app returns from Usage Access settings.
+     * KEEP prevents duplicate work while a backfill is already running.
+     */
+    fun scheduleInitialRefresh(context: Context) {
+        WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
+            INITIAL_REFRESH_WORK_NAME,
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<NativeUsageRefreshWorker>().build()
         )
     }
 }
