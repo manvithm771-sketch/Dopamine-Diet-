@@ -47,7 +47,8 @@ class DopamineDietActivity : MindfulHostActivity() {
                         onDeleteAppRestriction = ::deleteAppRestriction,
                         onSaveRestrictionGroup = ::saveRestrictionGroup,
                         onDeleteRestrictionGroup = ::deleteRestrictionGroup,
-                        onSaveWellbeing = ::saveWellbeing
+                        onSaveWellbeing = ::saveWellbeing,
+                        onRefreshUsage = { refreshTodayUsage(showResult = false) }
                     )
                 },
                 settings = {
