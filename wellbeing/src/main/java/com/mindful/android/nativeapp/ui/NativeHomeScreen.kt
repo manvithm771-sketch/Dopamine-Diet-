@@ -1363,7 +1363,7 @@ private fun WebsiteBlockContent(
                 body = if (blockedSites.isEmpty()) {
                     "Add website domains to your block list."
                 } else {
-                    blockedSites.joinToString("\\n")
+                    blockedSites.joinToString("\n")
                 }
             )
         }
