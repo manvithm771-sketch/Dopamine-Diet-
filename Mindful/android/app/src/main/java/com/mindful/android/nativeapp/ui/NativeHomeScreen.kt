@@ -104,6 +104,7 @@ fun NativeHomeScreen(
     startOnApps: Boolean = false,
     showInternalNavigation: Boolean = true,
     onStandaloneBack: (() -> Unit)? = null,
+    forceDopamineDietTheme: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var weekOffset by remember { mutableStateOf(0) }
@@ -180,7 +181,7 @@ fun NativeHomeScreen(
         selectedStatsDayRange.second
     ).collectAsState(initial = emptyList())
 
-    NativeMindfulTheme(settings = settings) {
+    NativeMindfulTheme(settings = settings, forceDopamineDietTheme = forceDopamineDietTheme) {
         Scaffold(
             modifier = modifier.fillMaxSize(),
             topBar = {
