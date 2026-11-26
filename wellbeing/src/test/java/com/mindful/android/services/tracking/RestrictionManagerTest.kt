@@ -130,9 +130,18 @@ class RestrictionManagerTest {
         assertEquals(1, recreatedTracker.getAppsLaunchCount["com.example.video"])
         assertNull(recreatedTracker.isAppRestricted("com.example.video"))
         assertEquals(2, recreatedTracker.getAppsLaunchCount["com.example.video"])
+
+        val recheckedTracker = RestrictionManager(context, {}, usageStats) { emptyMap() }
+        recheckedTracker.updateRestrictions(
+            hashMapOf("com.example.video" to AppRestriction(
+                appPackage = "com.example.video",
+                launchLimit = 2
+            )),
+            hashMapOf()
+        )
         assertEquals(
             RestrictionType.LAUNCH_COUNT,
-            recreatedTracker.isAppRestricted("com.example.video")?.type
+            recheckedTracker.recheckAppRestriction("com.example.video")?.type
         )
     }
 
