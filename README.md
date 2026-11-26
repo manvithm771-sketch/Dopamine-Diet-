@@ -25,3 +25,5 @@ The release APK is generated at `app/build/outputs/apk/release/app-release.apk`.
 
 
 Integration branch: `integration/unified-dopamine-diet`.
+
+Build validation is run automatically for this integration branch.
