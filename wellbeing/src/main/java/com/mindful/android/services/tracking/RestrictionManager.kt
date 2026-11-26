@@ -70,38 +70,39 @@ class RestrictionManager(
     }
 
 
-    // returns nearest time stamp for rechecking
-    fun isAppRestricted(packageName: String): RestrictionState? {
+    // A real foreground transition counts as a launch. Timer, unlock, and midnight
+    // callbacks must re-evaluate limits without consuming another launch.
+    fun isAppRestricted(packageName: String): RestrictionState? =
+        evaluateAppRestriction(packageName, countLaunch = true)
+
+    fun recheckAppRestriction(packageName: String): RestrictionState? =
+        evaluateAppRestriction(packageName, countLaunch = false)
+
+    private fun evaluateAppRestriction(
+        packageName: String,
+        countLaunch: Boolean,
+    ): RestrictionState? {
         // If already restricted by focus or cached
         val alreadyRestrictedState = evaluateIfAlreadyRestricted(packageName)
-        if (alreadyRestrictedState != null) {
-            return alreadyRestrictedState
-        }
+        if (alreadyRestrictedState != null) return alreadyRestrictedState
 
         // If no restrictions
         val restriction = appsRestrictions[packageName] ?: return null
 
-        // Increment and Check app launch count
-        val launchCount = appsLaunchCount.getOrDefault(packageName, 0) + 1
-        if ((restriction.launchLimit > 0) && (launchCount > restriction.launchLimit)) {
-            return RestrictionState(type = RestrictionType.LAUNCH_COUNT).also {
-                alreadyRestrictedApps[packageName] = it
+        if (countLaunch) {
+            val launchCount = appsLaunchCount.getOrDefault(packageName, 0) + 1
+            if (restriction.launchLimit > 0 && launchCount > restriction.launchLimit) {
+                return RestrictionState(type = RestrictionType.LAUNCH_COUNT).also {
+                    alreadyRestrictedApps[packageName] = it
+                }
             }
+            appsLaunchCount[packageName] = launchCount
         }
-        appsLaunchCount[packageName] = launchCount
 
         val futureStates: MutableSet<RestrictionState> = mutableSetOf()
-
-        /// Evaluate screen time
         evaluateScreenTimeLimit(restriction, futureStates)?.let { return it }
 
-        /// Return the nearest expiration
-        if (futureStates.isNotEmpty()) {
-            val nearestFutureState = futureStates.minBy { it.timeLeftMillis }
-            return nearestFutureState
-        } else {
-            return null
-        }
+        return futureStates.minByOrNull { it.timeLeftMillis }
     }
 
     private fun evaluateIfAlreadyRestricted(packageName: String): RestrictionState? {
