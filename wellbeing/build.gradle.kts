@@ -17,7 +17,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    testOptions { unitTests.includeAndroidResources = true }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 kapt {
     arguments { arg("room.schemaLocation", "$projectDir/schemas") }
