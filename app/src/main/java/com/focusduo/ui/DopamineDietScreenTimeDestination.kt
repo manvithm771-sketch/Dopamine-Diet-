@@ -217,6 +217,12 @@ fun DopamineDietScreenTimeDestination(
             }
         }
         item {
+            WeeklyScreenTimeChart(
+                weeklyTotals = weeklyTotals,
+                selectedWeekIndex = selectedWeekIndex
+            )
+        }
+        item {
             BlockingActionCard(
                 title = "App Blocking",
                 description = "Choose apps and manage their timers, launch limits and restriction groups.",
