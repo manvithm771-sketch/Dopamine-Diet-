@@ -420,17 +420,21 @@ private fun StatisticsContent(
                 timeInMillis = yearStartEpochMillis
                 add(Calendar.DAY_OF_YEAR, weekIndex * 7)
             }.timeInMillis
-            val total = (0..6).sumOf { dayIndex ->
-                val dayStart = Calendar.getInstance().apply {
+            val days = (0..6).map { dayIndex ->
+                Calendar.getInstance().apply {
                     timeInMillis = weekStart
                     add(Calendar.DAY_OF_YEAR, dayIndex)
                 }.timeInMillis
-                recordedDays[dayStart]?.totalScreenTime ?: 0L
             }
-            weekStart to total
+            val recordedDaysInWeek = days.mapNotNull { recordedDays[it] }
+            val total = recordedDaysInWeek
+                .takeIf { it.isNotEmpty() }
+                ?.sumOf { it.totalScreenTime }
+            Triple(weekStart, total, recordedDaysInWeek.size)
         }
     }
-    val maxWeeklyScreenTime = weeklyHistory.maxOfOrNull { it.second }?.coerceAtLeast(1L) ?: 1L
+    val maxWeeklyScreenTime = weeklyHistory.maxOfOrNull { it.second ?: 0L }
+        ?.coerceAtLeast(1L) ?: 1L
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -506,11 +510,20 @@ private fun StatisticsContent(
                                 .format(java.util.Date(week.first)),
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        Text(formatDuration(week.second), fontWeight = FontWeight.SemiBold)
+                        Text(
+                            week.second?.let(::formatDuration) ?: "No data",
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                     LinearProgressIndicator(
-                        progress = (week.second.toFloat() / maxWeeklyScreenTime.toFloat()).coerceIn(0f, 1f),
+                        progress = ((week.second ?: 0L).toFloat() / maxWeeklyScreenTime.toFloat())
+                            .coerceIn(0f, 1f),
                         modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        "Recorded on ${week.third} of 7 days",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
