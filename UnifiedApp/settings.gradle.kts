@@ -12,7 +12,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FocusHub"
+rootProject.name = "Dopamine Diet"
 include(":core-model", ":core-detect", ":core-data", ":service", ":dopamine", ":mindful", ":app")
 project(":core-model").projectDir = file("../Dopamine-Diet/DopamineDiet/core-model")
 project(":core-detect").projectDir = file("../Dopamine-Diet/DopamineDiet/core-detect")
