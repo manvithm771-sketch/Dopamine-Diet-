@@ -49,10 +49,10 @@ internal class NativeUsageRefreshWorker(
                         add(Calendar.DAY_OF_YEAR, 1)
                     }.timeInMillis
 
-                    // Match Mindful's historical Screen Time backfill: query the
-                    // completed day and preserve existing rows if Android
-                    // returns no historical usage for that interval.
-                    when (repository.refreshHistoricalScreenTimeDay(start, end)) {
+                    // Mindful's provider calls fetchAppsUsageForInterval for each
+                    // completed day, then batch-inserts the returned app/network rows.
+                    // Do the same here without clearing other records for that date.
+                    when (repository.refreshDay(start, end, replaceExisting = false)) {
                         is NativeUsageRefreshResult.Updated -> Unit
                         NativeUsageRefreshResult.UsageAccessRequired -> return Result.success()
                     }
