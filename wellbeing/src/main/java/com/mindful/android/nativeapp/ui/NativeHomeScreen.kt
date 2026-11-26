@@ -189,13 +189,15 @@ fun NativeHomeScreen(
                 if (selectedTab != NativeTab.DASHBOARD) {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                         if (!showInternalNavigation && onStandaloneBack != null && !startOnWebsiteBlock) {
-                            TextButton(onClick = onStandaloneBack) { Text("Back to Settings") }
+                            TextButton(onClick = onStandaloneBack) {
+                                Text("‹", style = MaterialTheme.typography.headlineMedium)
+                            }
                         }
                         Text(
                             text = when (selectedTab) {
                                 NativeTab.STATISTICS -> "Your statistics"
                                 NativeTab.FOCUS -> "Focus"
-                                NativeTab.APPS -> if (startOnWebsiteBlock) "Website blocking" else "App restrictions"
+                                NativeTab.APPS -> if (startOnWebsiteBlock) "Website blocking" else "App blocking"
                                 NativeTab.DASHBOARD -> ""
                             },
                             style = MaterialTheme.typography.headlineSmall,
