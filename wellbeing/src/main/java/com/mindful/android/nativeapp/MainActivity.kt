@@ -662,7 +662,7 @@ open class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun refreshTodayUsage(showResult: Boolean) {
+    protected fun refreshTodayUsage(showResult: Boolean = false) {
         val dayStart = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
