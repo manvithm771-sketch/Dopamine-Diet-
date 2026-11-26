@@ -92,6 +92,9 @@ interface NativeDashboardDao {
     @Query("SELECT * FROM wellbeing_table WHERE id = 0 LIMIT 1")
     fun observeWellbeing(): Flow<NativeWellbeingEntity?>
 
+    @Query("SELECT excluded_apps FROM shared_unique_data_table WHERE id = 0 LIMIT 1")
+    fun observeExcludedAppsJson(): Flow<String?>
+
     @Query("SELECT * FROM mindful_settings_table WHERE id = 0 LIMIT 1")
     fun observeSettings(): Flow<NativeMindfulSettingsEntity?>
 
