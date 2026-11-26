@@ -136,7 +136,10 @@ class LaunchTrackingManager(
         onCurrentAppRechecked.invoke(packageName)
     }
 
-    fun reInvokeLastLaunchEvent() = recheckCurrentApp(lastLaunchedApp)
+    fun reInvokeLastLaunchEvent() {
+        // Service rule updates can arrive on the main thread; keep UsageStats queries off it.
+        executorService.submit { recheckCurrentApp(lastLaunchedApp) }
+    }
 
     fun pauseResumeTracking(shouldPause: Boolean) {
         isTrackingPaused = shouldPause
