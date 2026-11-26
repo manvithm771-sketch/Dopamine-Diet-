@@ -485,8 +485,6 @@ private fun ScreenTimeInsightsScreen(
     onNextWeek: () -> Unit,
     onBack: () -> Unit
 ) {
-    val highestWeek = weeklyTotals.maxOrNull() ?: 0L
-    val averageWeek = if (weeklyTotals.isNotEmpty()) weeklyTotals.sum() / weeklyTotals.size else 0L
     Column(
         Modifier.fillMaxSize().background(TimeBg).verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 20.dp),
@@ -501,8 +499,6 @@ private fun ScreenTimeInsightsScreen(
         }
         WeeklyScreenTimeChart(weeklyTotals = weeklyTotals, selectedWeekIndex = selectedWeekIndex)
         InsightSummaryCard("1-year total screen time · 52 weeks", formatScreenDuration(annualTotal))
-        InsightSummaryCard("Average per week", formatScreenDuration(averageWeek))
-        InsightSummaryCard("Highest week", formatScreenDuration(highestWeek))
         WeekdayScreenTimeChart(
             dayTotals = selectedWeekDailyTotals,
             weekNumber = selectedWeekIndex + 1,
@@ -616,7 +612,7 @@ private fun WeekdayScreenTimeChart(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Weekly screen time", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text("Daily breakdown", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             Text("Week $weekNumber of 52", color = TimeMuted, style = MaterialTheme.typography.labelMedium)
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
