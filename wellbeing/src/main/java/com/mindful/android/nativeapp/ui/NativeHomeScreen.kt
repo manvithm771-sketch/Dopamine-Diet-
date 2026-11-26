@@ -158,12 +158,18 @@ fun NativeHomeScreen(
     ).collectAsState(initial = emptyList())
     val weeklyUsage by dao.observeDailyUsageRange(weekRange.first, weekRange.second)
         .collectAsState(initial = emptyList())
-    val yearRange = remember(weekRange.first, weekRange.second) {
+    val yearRange = remember {
         val start = Calendar.getInstance().apply {
-            timeInMillis = weekRange.first
-            add(Calendar.DAY_OF_YEAR, -51 * 7)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            val daysSinceMonday = (get(Calendar.DAY_OF_WEEK) + 5) % 7
+            add(Calendar.DAY_OF_YEAR, -daysSinceMonday)
+            add(Calendar.WEEK_OF_YEAR, -51)
         }
-        start.timeInMillis to weekRange.second
+        val end = (start.clone() as Calendar).apply { add(Calendar.WEEK_OF_YEAR, 52) }
+        start.timeInMillis to end.timeInMillis
     }
     val yearlyUsage by dao.observeDailyUsageRange(yearRange.first, yearRange.second)
         .collectAsState(initial = emptyList())
