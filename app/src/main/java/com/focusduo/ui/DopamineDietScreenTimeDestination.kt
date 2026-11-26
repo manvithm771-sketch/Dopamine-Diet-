@@ -75,6 +75,7 @@ fun DopamineDietScreenTimeDestination(
     val database = remember(context) { NativeDatabaseProvider.get(context) }
     var openedBlockingTool by remember { mutableStateOf<String?>(null) }
     var showInsights by remember { mutableStateOf(false) }
+    var showAllApps by remember { mutableStateOf(false) }
     var selectedWeekIndex by remember { mutableStateOf(51) }
 
     if (openedBlockingTool != null) {
@@ -163,6 +164,12 @@ fun DopamineDietScreenTimeDestination(
         return
     }
 
+    if (showAllApps) {
+        BackHandler(enabled = true) { showAllApps = false }
+        AllScreenTimeAppsScreen(appRows, context.packageManager) { showAllApps = false }
+        return
+    }
+
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = Modifier.fillMaxSize().background(TimeBg),
         contentPadding = PaddingValues(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 28.dp),
@@ -207,10 +214,21 @@ fun DopamineDietScreenTimeDestination(
             )
         }
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("All Apps", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Text("Last 52 weeks", color = TimeMuted, style = MaterialTheme.typography.labelSmall)
-            }
+            BlockingActionCard(
+                title = "App Blocking",
+                description = "Choose apps and manage their timers, launch limits and restriction groups.",
+                onClick = { openedBlockingTool = "apps" }
+            )
+        }
+        item {
+            BlockingActionCard(
+                title = "Website Blocking",
+                description = "Manage blocked websites, adult-site rules and short-form content restrictions.",
+                onClick = { openedBlockingTool = "websites" }
+            )
+        }
+        item {
+            Text("All Apps", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         if (appRows.isEmpty()) {
             item {
@@ -224,7 +242,7 @@ fun DopamineDietScreenTimeDestination(
                 }
             }
         } else {
-            items(appRows.size) { index ->
+            items(appRows.take(5).size) { index ->
                 val app = appRows[index]
                 val label = remember(app.packageName) { appDisplayName(context.packageManager, app.packageName) }
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -247,7 +265,6 @@ fun DopamineDietScreenTimeDestination(
                         )
                         Column(Modifier.weight(1f).padding(start = 11.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(label, color = TimeText, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                            Text("Last 52 weeks", color = TimeMuted, style = MaterialTheme.typography.labelSmall)
                         }
                         Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
                     }
@@ -261,23 +278,73 @@ fun DopamineDietScreenTimeDestination(
             }
         }
 
-        item {
-            BlockingActionCard(
-                title = "App Blocking",
-                description = "Choose apps and manage their timers, launch limits and restriction groups.",
-                onClick = { openedBlockingTool = "apps" }
-            )
-        }
-        item {
-            BlockingActionCard(
-                title = "Website Blocking",
-                description = "Manage blocked websites, adult-site rules and short-form content restrictions.",
-                onClick = { openedBlockingTool = "websites" }
-            )
+        if (appRows.size > 5) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                        .clickable { showAllApps = true }
+                        .padding(vertical = 13.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text("More", color = TimeText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text("  ›", color = TimeMuted, style = MaterialTheme.typography.titleMedium)
+                }
+            }
         }
     }
 }
 
+
+
+@Composable
+private fun AllScreenTimeAppsScreen(
+    appRows: List<com.mindful.android.nativeapp.data.local.entity.NativeAppUsageEntity>,
+    packageManager: PackageManager,
+    onBack: () -> Unit
+) {
+    val maxApp = appRows.maxOfOrNull { it.totalScreenTime }?.coerceAtLeast(1L) ?: 1L
+    Column(Modifier.fillMaxSize().background(TimeBg)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("‹", color = TimeText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
+            Column {
+                Text("All Apps", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Screen time · last 52 weeks", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        androidx.compose.foundation.lazy.LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(17.dp)
+        ) {
+            if (appRows.isEmpty()) {
+                item { Text("No app usage history is available for this period.", color = TimeMuted, style = MaterialTheme.typography.bodyMedium) }
+            } else {
+                items(appRows.size) { index ->
+                    val app = appRows[index]
+                    val label = remember(app.packageName) { appDisplayName(packageManager, app.packageName) }
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AndroidView(
+                                modifier = Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)),
+                                factory = { viewContext -> ImageView(viewContext).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(3, 3, 3, 3) } },
+                                update = { image -> runCatching { image.setImageDrawable(packageManager.getApplicationIcon(app.packageName)) }.onFailure { image.setImageDrawable(null) } }
+                            )
+                            Text(label, color = TimeText, modifier = Modifier.weight(1f).padding(start = 11.dp), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                        }
+                        LinearProgressIndicator(
+                            progress = { (app.totalScreenTime.toFloat() / maxApp).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth().padding(start = 49.dp).height(6.dp).clip(CircleShape),
+                            color = TimeViolet,
+                            trackColor = Color(0xFF292A3B)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun ScreenStatisticsIcon(modifier: Modifier = Modifier) {
