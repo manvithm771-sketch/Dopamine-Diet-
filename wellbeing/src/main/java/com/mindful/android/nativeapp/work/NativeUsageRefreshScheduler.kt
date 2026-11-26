@@ -12,10 +12,6 @@ internal object NativeUsageRefreshScheduler {
     private const val UNIQUE_WORK_NAME = "mindful-native-usage-refresh"
     private const val INITIAL_REFRESH_WORK_NAME = "mindful-native-usage-initial-refresh"
 
-    /**
-     * Queue an immediate pass so the 52-week history backfill does not wait
-     * for the first hourly periodic-work window after installation or upgrade.
-     */
     fun schedule(context: Context) {
         scheduleInitialRefresh(context)
 
@@ -30,17 +26,14 @@ internal object NativeUsageRefreshScheduler {
         )
     }
 
-    /**
-     * Retry immediately when the app returns from Usage Access settings.
-     * KEEP prevents duplicate work while a backfill is already running.
-     */
+    /** Queue the initial Mindful-style 11-day history population immediately. */
     fun scheduleInitialRefresh(context: Context) {
         val appContext = context.applicationContext
         val historyPrefs = appContext.getSharedPreferences(
             "native_screen_time_history",
             Context.MODE_PRIVATE
         )
-        if (historyPrefs.getBoolean("backfill_complete", false)) return
+        if (historyPrefs.getBoolean("mindful_11_day_backfill_complete", false)) return
 
         WorkManager.getInstance(appContext).enqueueUniqueWork(
             INITIAL_REFRESH_WORK_NAME,
