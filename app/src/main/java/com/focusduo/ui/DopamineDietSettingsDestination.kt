@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +24,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -166,7 +168,7 @@ fun DopamineDietSettingsDestination(
 
         item {
             SettingsGroup {
-                SettingsSwitchItem("♧", "Pause notifications", checked = false, onCheckedChange = {
+                SettingsSwitchItem("♧", "Pause notifications", checked = true, onCheckedChange = {
                     context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
                 })
                 SettingsItem("☷", "General settings", null) { showGeneralSettings = true }
@@ -192,7 +194,7 @@ fun DopamineDietSettingsDestination(
 }
 
 @Composable
-private fun SettingsGroup(content: @Composable () -> Unit) {
+private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
@@ -241,7 +243,15 @@ private fun SettingsSwitchItem(
         Text(title, color = SettingsText, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).padding(start = 20.dp))
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFFB8F000),
+                checkedBorderColor = Color(0xFFB8F000),
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = SettingsSwitchTrack,
+                uncheckedBorderColor = SettingsSwitchTrack
+            )
         )
     }
 }
