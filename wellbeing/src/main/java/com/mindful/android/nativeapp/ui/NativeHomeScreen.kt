@@ -195,7 +195,7 @@ fun NativeHomeScreen(
                             text = when (selectedTab) {
                                 NativeTab.STATISTICS -> "Your statistics"
                                 NativeTab.FOCUS -> "Focus"
-                                NativeTab.APPS -> "App restrictions"
+                                NativeTab.APPS -> if (startOnWebsiteBlock) "Website blocking" else "App restrictions"
                                 NativeTab.DASHBOARD -> ""
                             },
                             style = MaterialTheme.typography.headlineSmall,
