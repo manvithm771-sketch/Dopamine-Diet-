@@ -55,6 +55,8 @@ import java.util.Calendar
 open class MainActivity : ComponentActivity() {
     protected val database by lazy { NativeDatabaseProvider.get(applicationContext) }
     private var restrictionController: NativeRestrictionController? = null
+    // 0 = no pending flow, 1 = waiting for Usage Access, 2 = waiting for Overlay access.
+    private var pendingAppBlockingPermissionStep = 0
     private val focusServiceController by lazy { NativeFocusServiceController(applicationContext) }
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -174,10 +176,12 @@ open class MainActivity : ComponentActivity() {
         super.onResume()
         if (!onboardingStateLoaded || startupError != null) return
         refreshNativePermissionStatus()
+        // Resume any permission flow started when the user saved an app-blocking rule.
+        resumePendingAppBlockingPermissionFlow()
         // Recheck on return from Android's special Usage Access settings screen.
         resumeActiveFocusSession()
         refreshTodayUsage(showResult = false)
-        syncSavedRestrictions()
+        if (pendingAppBlockingPermissionStep == 0) syncSavedRestrictions()
     }
 
 
@@ -302,6 +306,7 @@ open class MainActivity : ComponentActivity() {
                 database.nativeRestrictionDao().saveRestriction(rule)
                 when {
                     !hasUsageAccess() -> {
+                        pendingAppBlockingPermissionStep = 1
                         Toast.makeText(
                             this@MainActivity,
                             "Rule saved. Grant Usage Access to activate app blocking.",
@@ -310,6 +315,7 @@ open class MainActivity : ComponentActivity() {
                         startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                     }
                     !Settings.canDrawOverlays(this@MainActivity) -> {
+                        pendingAppBlockingPermissionStep = 2
                         Toast.makeText(
                             this@MainActivity,
                             "Rule saved. Allow display over other apps to activate blocking.",
@@ -318,9 +324,10 @@ open class MainActivity : ComponentActivity() {
                         requestOverlayAccess()
                     }
                     else -> {
+                        pendingAppBlockingPermissionStep = 0
                         Toast.makeText(
                             this@MainActivity,
-                            "App blocking rule saved and activated.",
+                            "Rule saved. Applying app-blocking rules.",
                             Toast.LENGTH_SHORT
                         ).show()
                         syncSavedRestrictions()
@@ -436,6 +443,51 @@ open class MainActivity : ComponentActivity() {
                 if (applied) "Saved restriction rules applied." else "Required permissions are missing.",
                 Toast.LENGTH_LONG
             ).show()
+        }
+    }
+
+    private fun resumePendingAppBlockingPermissionFlow() {
+        when (pendingAppBlockingPermissionStep) {
+            1 -> {
+                pendingAppBlockingPermissionStep = 0
+                if (!hasUsageAccess()) {
+                    Toast.makeText(
+                        this,
+                        "Usage Access is still disabled. App blocking is not active.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else if (!Settings.canDrawOverlays(this)) {
+                    pendingAppBlockingPermissionStep = 2
+                    Toast.makeText(
+                        this,
+                        "Now allow display over other apps to finish app-blocking setup.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    requestOverlayAccess()
+                } else {
+                    Toast.makeText(this, "Permissions granted. Applying app-blocking rules.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            2 -> {
+                pendingAppBlockingPermissionStep = 0
+                if (!Settings.canDrawOverlays(this)) {
+                    Toast.makeText(
+                        this,
+                        "Overlay access is still disabled. App blocking cannot cover restricted apps.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else if (!hasUsageAccess()) {
+                    pendingAppBlockingPermissionStep = 1
+                    Toast.makeText(
+                        this,
+                        "Now grant Usage Access to finish app-blocking setup.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                } else {
+                    Toast.makeText(this, "Permissions granted. Applying app-blocking rules.", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
