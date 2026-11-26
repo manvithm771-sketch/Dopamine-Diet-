@@ -26,7 +26,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -83,7 +82,6 @@ fun DopamineDietScrollDestination() {
     }
 
     val totalToday = stats.count + stats.shortsCount
-    val ringProgress = (totalToday / 100f).coerceIn(0.04f, 1f)
     val date = remember(is24h) {
         java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date())
     }
@@ -111,23 +109,17 @@ fun DopamineDietScrollDestination() {
                 Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(Modifier.size(184.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(
-                        progress = { ringProgress },
-                        modifier = Modifier.fillMaxSize(),
-                        color = ScrollViolet,
-                        trackColor = Color(0xFF252333),
-                        strokeWidth = 11.dp
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Image(
+                        painter = painterResource(id = BrainRot.sprite(BrainRot.stage(totalToday))),
+                        contentDescription = "Brain status: ${BrainRot.label(BrainRot.stage(totalToday))}",
+                        modifier = Modifier.size(width = 76.dp, height = 64.dp)
                     )
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Image(
-                            painter = painterResource(id = BrainRot.sprite(BrainRot.stage(totalToday))),
-                            contentDescription = "Brain status: ${BrainRot.label(BrainRot.stage(totalToday))}",
-                            modifier = Modifier.size(width = 76.dp, height = 64.dp)
-                        )
-                        Text("$totalToday", color = ScrollText, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                        Text("Reels + Shorts", color = ScrollMuted, style = MaterialTheme.typography.labelMedium)
-                    }
+                    Text("$totalToday", color = ScrollText, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                    Text("Reels + Shorts", color = ScrollMuted, style = MaterialTheme.typography.labelMedium)
                 }
                 Spacer(Modifier.height(13.dp))
                 Text(date, color = ScrollMuted, style = MaterialTheme.typography.bodyMedium)
