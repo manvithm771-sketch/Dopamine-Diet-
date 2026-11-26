@@ -1,0 +1,5 @@
+# This repository contains Android apps; the only web content is the
+# Dopamine Diet landing page in the docs folder. Publish it as a static site.
+[build]
+  publish = "Dopamine-Diet/DopamineDiet/docs"
+  command = ""
