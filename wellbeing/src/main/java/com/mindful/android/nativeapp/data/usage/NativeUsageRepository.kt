@@ -63,14 +63,12 @@ internal class NativeUsageRepository(
         val mobileUsage = NetworkUsageHelper.fetchMobileUsageForInterval(
             networkStatsManager,
             dayStartEpochMillis,
-            endEpochMillis,
-            strict = true
+            endEpochMillis
         )
         val wifiUsage = NetworkUsageHelper.fetchWifiUsageForInterval(
             networkStatsManager,
             dayStartEpochMillis,
-            endEpochMillis,
-            strict = true
+            endEpochMillis
         )
 
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
