@@ -204,7 +204,6 @@ class MindfulTrackerService : Service() {
     private fun stopIfNoUsage() {
         if (restrictionManager.isIdle) {
             Log.d(TAG, "Service no longer needed, stopping")
-            launchTrackingManager.dispose()
             reminderManager.cancelReminders()
             overlayManager.dismissSheetOverlay()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -213,6 +212,11 @@ class MindfulTrackerService : Service() {
     }
 
     override fun onDestroy() {
+        // Dispose tracking only when the service is actually destroyed. A bound Activity
+        // may still save a new rule immediately after the last rule is removed.
+        if (::launchTrackingManager.isInitialized) launchTrackingManager.dispose()
+        if (::reminderManager.isInitialized) reminderManager.cancelReminders()
+        if (::overlayManager.isInitialized) overlayManager.dismissSheetOverlay()
         serviceScope.cancel()
         Log.d(TAG, "onDestroy: TRACKER service destroyed successfully")
         super.onDestroy()
