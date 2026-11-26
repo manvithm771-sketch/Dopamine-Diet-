@@ -1430,23 +1430,31 @@ private fun WebsiteBlockContent(
     }
 }
 
-private fun normalizeBlockedWebsiteHost(input: String): String? = runCatching {
-    val raw = input.trim().trimEnd('.')
-    if (raw.isBlank() || raw.any { it.isWhitespace() }) return null
-    val withScheme = if (raw.contains("://")) raw else "https://$raw"
-    val uri = java.net.URI(withScheme)
-    var host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return null
-    host = host.removePrefix("www.").removePrefix("mobile.").removePrefix("m.")
-    if (host.length !in 3..253 || !host.contains('.')) return null
-    val labels = host.split('.')
-    if (labels.any { label ->
-            label.isBlank() || label.length > 63 ||
-                !label.first().isLetterOrDigit() || !label.last().isLetterOrDigit() ||
-                label.any { !it.isLetterOrDigit() && it != '-' }
+private fun normalizeBlockedWebsiteHost(input: String): String? {
+    return runCatching {
+        val raw = input.trim().trimEnd('.')
+        if (raw.isBlank() || raw.any { it.isWhitespace() }) return@runCatching null
+        val withScheme = if (raw.contains("://")) raw else "https://$raw"
+        val uri = java.net.URI(withScheme)
+        var host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return@runCatching null
+        while (host.startsWith("www.") || host.startsWith("mobile.") || host.startsWith("m.")) {
+            host = when {
+                host.startsWith("www.") -> host.removePrefix("www.")
+                host.startsWith("mobile.") -> host.removePrefix("mobile.")
+                else -> host.removePrefix("m.")
+            }
         }
-    ) return null
-    host
-}.getOrNull()
+        if (host.length !in 3..253 || !host.contains('.')) return@runCatching null
+        val labels = host.split('.')
+        if (labels.any { label ->
+                label.isBlank() || label.length > 63 ||
+                    !label.first().isLetterOrDigit() || !label.last().isLetterOrDigit() ||
+                    label.any { !it.isLetterOrDigit() && it != '-' }
+            }
+        ) return@runCatching null
+        host
+    }.getOrNull()
+}
 
 private fun PlatformFeatures.displayLabel(): String = when (this) {
     PlatformFeatures.INSTAGRAM_REELS -> "Instagram Reels"
