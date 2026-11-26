@@ -56,7 +56,7 @@ class RestrictionManager(
         alreadyRestrictedGroups.clear()
         appsLaunchCount.clear()
         launchCountDayKey = currentLocalDayKey()
-        launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, launchCountDayKey).apply()
+        launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, launchCountDayKey).commit()
     }
 
     private fun currentLocalDayKey(): String {
@@ -68,7 +68,7 @@ class RestrictionManager(
         val today = currentLocalDayKey()
         launchCountDayKey = today
         if (launchCountPrefs.getString(LAUNCH_COUNT_DAY_KEY, null) != today) {
-            launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).apply()
+            launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).commit()
             return
         }
 
