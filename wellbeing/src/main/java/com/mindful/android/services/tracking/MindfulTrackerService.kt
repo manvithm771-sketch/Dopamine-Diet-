@@ -25,6 +25,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MindfulTrackerService : Service() {
     companion object {
@@ -87,7 +88,7 @@ class MindfulTrackerService : Service() {
                 NativeStartupCoordinator.prepare(applicationContext)
                 if (!hasUsageAccess() || !Settings.canDrawOverlays(applicationContext)) {
                     Log.w(TAG, "restoreSavedRestrictions: Required Usage Access or Overlay permission is missing")
-                    stopIfNoUsage()
+                    withContext(Dispatchers.Main) { stopIfNoUsage() }
                     return@launch
                 }
 
@@ -104,7 +105,9 @@ class MindfulTrackerService : Service() {
                     protectedPackageNames = protectedSystemPackageNames(applicationContext)
                 )
                 val rules = buildNativeRestrictionRules(filtered.apps, filtered.groups)
-                restrictionManager.updateRestrictions(rules.apps, rules.groups)
+                withContext(Dispatchers.Main) {
+                    restrictionManager.updateRestrictions(rules.apps, rules.groups)
+                }
                 Log.i(
                     TAG,
                     "restoreSavedRestrictions: Restored ${rules.apps.size} app rules and ${rules.groups.size} group rules"
@@ -112,7 +115,7 @@ class MindfulTrackerService : Service() {
             } catch (error: Exception) {
                 Log.e(TAG, "restoreSavedRestrictions: Could not restore saved app-blocking rules", error)
                 SharedPrefsHelper.insertCrashLogToPrefs(applicationContext, error)
-                stopIfNoUsage()
+                withContext(Dispatchers.Main) { stopIfNoUsage() }
             }
         }
     }
