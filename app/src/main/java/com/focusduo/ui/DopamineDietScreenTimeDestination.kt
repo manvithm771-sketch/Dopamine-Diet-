@@ -28,6 +28,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,9 +71,11 @@ fun DopamineDietScreenTimeDestination(
     onDeleteAppRestriction: (String) -> Unit,
     onSaveRestrictionGroup: (NativeRestrictionGroupEntity) -> Unit,
     onDeleteRestrictionGroup: (Long) -> Unit,
-    onSaveWellbeing: (NativeWellbeingEntity) -> Unit
+    onSaveWellbeing: (NativeWellbeingEntity) -> Unit,
+    onRefreshUsage: () -> Unit
 ) {
     val context = LocalContext.current
+    LaunchedEffect(Unit) { onRefreshUsage() }
     val database = remember(context) { NativeDatabaseProvider.get(context) }
     var openedBlockingTool by remember { mutableStateOf<String?>(null) }
     var showInsights by remember { mutableStateOf(false) }
