@@ -239,6 +239,43 @@ fun DopamineDietScreenTimeDestination(
             }
         }
         item {
+            Text("Today's app usage", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+        if (todayApps.isEmpty()) {
+            item {
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = TimeCard)) {
+                    Text(
+                        "No app usage has been recorded today yet. Usage Access must be enabled for Dopamine Diet.",
+                        color = TimeMuted,
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        } else {
+            items(todayApps.sortedByDescending { it.totalScreenTime }.take(5).size) { index ->
+                val app = todayApps.sortedByDescending { it.totalScreenTime }[index]
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    AndroidView(
+                        modifier = Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)),
+                        factory = { viewContext -> ImageView(viewContext).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(3, 3, 3, 3) } },
+                        update = { imageView ->
+                            runCatching { imageView.setImageDrawable(context.packageManager.getApplicationIcon(app.packageName)) }
+                                .onFailure { imageView.setImageDrawable(null) }
+                        }
+                    )
+                    Text(
+                        appDisplayName(context.packageManager, app.packageName),
+                        color = TimeText,
+                        modifier = Modifier.weight(1f).padding(start = 11.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item {
             Card(
                 Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
