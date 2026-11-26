@@ -1,0 +1,75 @@
+name: Build Dopamine Diet APK
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.kt"
+      - "**/*.kts"
+      - "**/*.xml"
+      - "gradle/**"
+      - "gradlew"
+      - ".github/workflows/build-dopamine-diet.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.kt"
+      - "**/*.kts"
+      - "**/*.xml"
+      - "gradle/**"
+      - "gradlew"
+      - ".github/workflows/build-dopamine-diet.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+jobs:
+  build:
+    name: Build and upload Dopamine Diet APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build unified debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace --console=plain
+      - name: Verify generated APK
+        shell: bash
+        run: |
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          if [ ! -s "$APK_PATH" ]; then
+            echo "::error::Expected APK was not generated at $APK_PATH"
+            find . -type f -name "*.apk" -print || true
+            exit 1
+          fi
+          ls -lh "$APK_PATH"
+      - name: Remove previous Dopamine Diet APK artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifactName = "Dopamine-Diet-debug-apk";
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
+            );
+            const previous = artifacts.filter(a => a.name === artifactName);
+            for (const artifact of previous) {
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id
+              });
+            }
+      - name: Upload APK to workflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dopamine-Diet-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 1
