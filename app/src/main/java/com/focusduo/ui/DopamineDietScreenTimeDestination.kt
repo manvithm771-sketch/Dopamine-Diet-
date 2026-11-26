@@ -3,6 +3,7 @@ package com.focusduo.ui
 import android.content.pm.PackageManager
 import android.widget.ImageView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -34,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -71,6 +73,7 @@ fun DopamineDietScreenTimeDestination(
     val context = LocalContext.current
     val database = remember(context) { NativeDatabaseProvider.get(context) }
     var openedBlockingTool by remember { mutableStateOf<String?>(null) }
+    var showInsights by remember { mutableStateOf(false) }
 
     if (openedBlockingTool != null) {
         NativeHomeScreen(
@@ -142,6 +145,11 @@ fun DopamineDietScreenTimeDestination(
     val maxWeek = weeklyTotals.maxOrNull()?.coerceAtLeast(1L) ?: 1L
     val maxApp = usage.maxOfOrNull { it.totalScreenTime }?.coerceAtLeast(1L) ?: 1L
     val appRows = usage.sortedByDescending { it.totalScreenTime }
+    if (showInsights) {
+        BackHandler(enabled = true) { showInsights = false }
+        ScreenTimeInsightsScreen(annualTotal, weeklyTotals, appRows, context.packageManager) { showInsights = false }
+        return
+    }
 
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = Modifier.fillMaxSize().background(TimeBg),
@@ -149,9 +157,12 @@ fun DopamineDietScreenTimeDestination(
         verticalArrangement = Arrangement.spacedBy(15.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Screen Time", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Your screen usage over the last 52 weeks.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Screen Time", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Your screen usage over the last 52 weeks.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                }
+                ScreenStatisticsIcon(Modifier.size(42.dp).clip(CircleShape).clickable { showInsights = true }.padding(10.dp))
             }
         }
         item {
@@ -243,6 +254,62 @@ fun DopamineDietScreenTimeDestination(
                 description = "Manage blocked websites, adult-site rules and short-form content restrictions.",
                 onClick = { openedBlockingTool = "websites" }
             )
+        }
+    }
+}
+
+
+@Composable
+private fun ScreenStatisticsIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val color = Color(0xFFE5E5EF)
+        val stroke = 2.dp.toPx()
+        listOf(0.35f, 0.65f, 0.95f).forEachIndexed { index, height ->
+            val x = size.width * (0.18f + index * 0.32f)
+            drawLine(color, Offset(x, size.height * (1f - height)), Offset(x, size.height), strokeWidth = stroke)
+        }
+    }
+}
+
+@Composable
+private fun ScreenTimeInsightsScreen(
+    annualTotal: Long,
+    weeklyTotals: List<Long>,
+    appRows: List<com.mindful.android.nativeapp.data.local.entity.NativeAppUsageEntity>,
+    packageManager: PackageManager,
+    onBack: () -> Unit
+) {
+    val highestWeek = weeklyTotals.maxOrNull() ?: 0L
+    val averageWeek = if (weeklyTotals.isNotEmpty()) weeklyTotals.sum() / weeklyTotals.size else 0L
+    Column(Modifier.fillMaxSize().background(TimeBg).padding(horizontal = 20.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("‹", color = TimeText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
+            Column {
+                Text("Screen time insights", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("A deeper look at your recorded usage", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        InsightSummaryCard("Total · 52 weeks", formatScreenDuration(annualTotal))
+        InsightSummaryCard("Average per week", formatScreenDuration(averageWeek))
+        InsightSummaryCard("Highest week", formatScreenDuration(highestWeek))
+        Text("Top apps · last 52 weeks", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        appRows.take(8).forEach { app ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                AndroidView(modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)), factory = { viewContext -> ImageView(viewContext).apply { scaleType = ImageView.ScaleType.FIT_CENTER } }, update = { image -> runCatching { image.setImageDrawable(packageManager.getApplicationIcon(app.packageName)) }.onFailure { image.setImageDrawable(null) } })
+                Text(appDisplayName(packageManager, app.packageName), color = TimeText, modifier = Modifier.weight(1f).padding(start = 10.dp), style = MaterialTheme.typography.bodyMedium)
+                Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Text("Insights use usage records available on this device. Missing historical records are not estimated.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun InsightSummaryCard(label: String, value: String) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = TimeCard)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(label, color = TimeMuted, style = MaterialTheme.typography.labelLarge)
+            Text(value, color = TimeText, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
