@@ -214,7 +214,7 @@ fun DopamineDietScreenTimeDestination(
         item {
             Text("Today's app usage", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
-        if (todayApps.isEmpty()) {
+        if (visibleTodayApps.isEmpty()) {
             item {
                 Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = TimeCard)) {
                     Text(
