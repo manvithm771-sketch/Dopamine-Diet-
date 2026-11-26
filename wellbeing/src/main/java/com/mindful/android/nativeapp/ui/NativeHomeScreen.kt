@@ -1262,7 +1262,8 @@ private fun AppsContent(
                             )
                             val rule = restrictionsByPackage[app.packageName]
                             val hasActiveRule = rule != null &&
-                                (rule.timerSec > 0L || rule.launchLimit > 0L || rule.associatedGroupId != null)
+                                (rule.timerSec > 0L || rule.launchLimit > 0L ||
+                                    groups.any { it.id == rule.associatedGroupId && it.timerSec > 0L })
                             if (hasActiveRule) {
                                 Text(
                                     "Limited",
@@ -1846,7 +1847,7 @@ private fun AppDetailContent(
                         TextButton(
                             enabled = (timerText.toLongOrNull() ?: 0L) > 0L ||
                                 (launchLimitText.toLongOrNull() ?: 0L) > 0L ||
-                                restriction?.associatedGroupId != null,
+                                groups.any { it.id == restriction?.associatedGroupId && it.timerSec > 0L },
                             onClick = {
                                 onSaveRestriction(
                                     NativeAppRestrictionEntity(
