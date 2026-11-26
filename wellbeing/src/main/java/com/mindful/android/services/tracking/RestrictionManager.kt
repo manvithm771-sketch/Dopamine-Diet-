@@ -130,6 +130,8 @@ class RestrictionManager(
         packageName: String,
         countLaunch: Boolean,
     ): RestrictionState? {
+        ensureLaunchCountsForToday()
+
         // If already restricted by focus or cached
         val alreadyRestrictedState = evaluateIfAlreadyRestricted(packageName)
         if (alreadyRestrictedState != null) return alreadyRestrictedState
@@ -137,18 +139,21 @@ class RestrictionManager(
         // If no restrictions
         val restriction = appsRestrictions[packageName] ?: return null
 
+        val launchCount = if (countLaunch) {
+            (appsLaunchCount[packageName] ?: 0) + 1
+        } else {
+            appsLaunchCount[packageName] ?: 0
+        }
         if (countLaunch) {
-            ensureLaunchCountsForToday()
-            val launchCount = appsLaunchCount.getOrDefault(packageName, 0) + 1
             appsLaunchCount[packageName] = launchCount
             launchCountPrefs.edit()
                 .putString(LAUNCH_COUNT_DAY_KEY, launchCountDayKey)
                 .putInt("$LAUNCH_COUNT_PREFIX$packageName", launchCount)
                 .apply()
-            if (restriction.launchLimit > 0 && launchCount > restriction.launchLimit) {
-                return RestrictionState(type = RestrictionType.LAUNCH_COUNT).also {
-                    alreadyRestrictedApps[packageName] = it
-                }
+        }
+        if (restriction.launchLimit > 0 && launchCount > restriction.launchLimit) {
+            return RestrictionState(type = RestrictionType.LAUNCH_COUNT).also {
+                alreadyRestrictedApps[packageName] = it
             }
         }
 
