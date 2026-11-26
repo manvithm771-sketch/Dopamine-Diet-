@@ -1,4 +1,4 @@
-name: Build Focus Duo APK
+name: Build Dopamine Diet APK
 
 on:
   push:
@@ -12,10 +12,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
+    name: Build and upload debug APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,6 +27,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -35,27 +37,23 @@ jobs:
       - name: Build unified debug APK
         run: gradle -p UnifiedApp :app:assembleDebug --stacktrace --console=plain
 
-      - name: Locate generated APK
-        id: apk
+      - name: Verify generated APK
         shell: bash
         run: |
-          echo "Searching for APK files under UnifiedApp..."
-          find UnifiedApp -type f -name "*.apk" -print
-          APK_PATH=$(find UnifiedApp -type f -name "*.apk" -print -quit)
-          if [ -z "$APK_PATH" ]; then
-            echo "::error::Gradle completed but no APK file exists under UnifiedApp."
+          APK_PATH="UnifiedApp/app/build/outputs/apk/debug/app-debug.apk"
+          if [ ! -s "$APK_PATH" ]; then
+            echo "::error::Expected APK was not generated at $APK_PATH"
+            echo "Available APK files:"
+            find UnifiedApp -type f -name "*.apk" -print || true
             exit 1
           fi
-          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          echo "Found APK: $APK_PATH"
+          echo "APK verified: $APK_PATH"
+          ls -lh "$APK_PATH"
 
-      - name: Publish APK as a GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          TAG="focus-duo-debug-${{ github.run_number }}-${{ github.run_attempt }}"
-          gh release create "$TAG" "${{ steps.apk.outputs.apk_path }}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Focus Duo Debug APK - Run ${{ github.run_number }}" \
-            --notes "Automatically built debug APK from commit ${{ github.sha }}."
+      - name: Upload APK to workflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dopamine-Diet-debug-apk
+          path: UnifiedApp/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
