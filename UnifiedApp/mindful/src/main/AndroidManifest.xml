@@ -36,20 +36,6 @@
             </intent-filter>
         </activity>
         <receiver
-            android:name="com.mindful.android.widgets.AggregatedUsageWidgetProvider"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_aggregated_usage_config" />
-        </receiver>
-        <receiver
-            android:name="com.mindful.android.widgets.ScreenUsageWidgetProvider"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_screen_usage_config" />
-        </receiver>
-        <receiver
             android:name="com.mindful.android.receivers.DeviceBootReceiver"
             android:enabled="true"
             android:exported="false">
