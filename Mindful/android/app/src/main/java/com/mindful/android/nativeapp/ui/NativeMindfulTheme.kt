@@ -15,17 +15,18 @@ import com.mindful.android.nativeapp.data.local.entity.NativeMindfulSettingsEnti
 @Composable
 fun NativeMindfulTheme(
     settings: NativeMindfulSettingsEntity?,
+    forceDopamineDietTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
-    val dark = when (settings?.themeMode ?: 0L) {
+    val dark = if (forceDopamineDietTheme) true else when (settings?.themeMode ?: 0L) {
         1L -> false
         2L -> true
         else -> systemDark
     }
     val context = LocalContext.current
-    val seed = nativeSeedColor(settings?.accentColor ?: "Indigo")
-    val dynamicEnabled = settings?.useDynamicColors == true &&
+    val seed = if (forceDopamineDietTheme) Color(0xFFB69AFF) else nativeSeedColor(settings?.accentColor ?: "Indigo")
+    val dynamicEnabled = !forceDopamineDietTheme && settings?.useDynamicColors == true &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val baseColors = when {
         dynamicEnabled && dark -> dynamicDarkColorScheme(context)
