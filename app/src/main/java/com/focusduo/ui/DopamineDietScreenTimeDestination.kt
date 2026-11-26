@@ -119,7 +119,8 @@ fun DopamineDietScreenTimeDestination(
         .observeDailyUsageRange(yearRange.first, yearRange.second)
         .collectAsState(initial = emptyList())
 
-    val annualTotal = usage.sumOf { it.totalScreenTime }
+    // Sum the daily aggregates so the annual figure uses the same 52-week dataset as the chart.
+    val annualTotal = daily.sumOf { it.totalScreenTime }
     val currentWeekDailyTotals = remember(daily) {
         val monday = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -416,7 +417,7 @@ private fun ScreenTimeInsightsScreen(
             }
         }
         WeeklyScreenTimeChart(weeklyTotals = weeklyTotals, selectedWeekIndex = selectedWeekIndex)
-        InsightSummaryCard("1-year total screen time", formatScreenDuration(annualTotal))
+        InsightSummaryCard("1-year total screen time · 52 weeks", formatScreenDuration(annualTotal))
         InsightSummaryCard("Average per week", formatScreenDuration(averageWeek))
         InsightSummaryCard("Highest week", formatScreenDuration(highestWeek))
         WeekdayScreenTimeChart(
