@@ -20,7 +20,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":service"))
+    // The unified app hosts public UI and service types from the original module.
+    api(project(":service"))
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(platform(libs.compose.bom))
