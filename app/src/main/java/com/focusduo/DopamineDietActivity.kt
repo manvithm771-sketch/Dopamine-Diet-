@@ -41,7 +41,15 @@ class DopamineDietActivity : MindfulHostActivity() {
             DopamineDietNavigationShell(
                 habits = { DopamineDietHabitsDestination() },
                 scroll = { DopamineDietScrollDestination() },
-                screenTime = { DopamineDietScreenTimeDestination() },
+                screenTime = {
+                    DopamineDietScreenTimeDestination(
+                        onSaveAppRestriction = ::saveAppRestriction,
+                        onDeleteAppRestriction = ::deleteAppRestriction,
+                        onSaveRestrictionGroup = ::saveRestrictionGroup,
+                        onDeleteRestrictionGroup = ::deleteRestrictionGroup,
+                        onSaveWellbeing = ::saveWellbeing
+                    )
+                },
                 settings = {
                     DopamineDietSettingsDestination(
                         database = database,
