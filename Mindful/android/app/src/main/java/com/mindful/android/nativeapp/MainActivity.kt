@@ -21,6 +21,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -48,7 +49,7 @@ import java.util.Calendar
 /**
  * Production native Android entry point. The application is hosted by Kotlin and Jetpack Compose.
  */
-class MainActivity : ComponentActivity() {
+open class MainActivity : ComponentActivity() {
     private val database by lazy { NativeDatabaseProvider.get(applicationContext) }
     private var restrictionController: NativeRestrictionController? = null
     private val focusServiceController by lazy { NativeFocusServiceController(applicationContext) }
@@ -100,23 +101,32 @@ class MainActivity : ComponentActivity() {
                     onFinish = { finishNativeOnboarding() }
                 )
             } else {
-            NativeHomeScreen(
-                dao = database.nativeDashboardDao(),
-                focusDao = database.nativeFocusDao(),
-                onStartFocus = { sessionType -> startFocusSession(sessionType) },
-                onFinishFocus = { successful -> finishFocusSession(successful) },
-                onSaveFocusProfile = { profile -> saveFocusProfile(profile) },
-                onSaveFocusReflection = { reflection -> saveFocusReflection(reflection) },
-                onRequestOverlayAccess = { requestOverlayAccess() },
-                onApplyRestrictions = { applySavedRestrictions() },
-                onSaveAppRestriction = { saveAppRestriction(it) },
-                onDeleteAppRestriction = { deleteAppRestriction(it) },
-                onSaveRestrictionGroup = { saveRestrictionGroup(it) },
-                onDeleteRestrictionGroup = { deleteRestrictionGroup(it) },
-                onSaveWellbeing = { saveWellbeing(it) }
-            )
+                MainContent()
             }
         }
+    }
+
+    /**
+     * Screen content hook for the unified product host. Startup, migrations,
+     * permissions, services and persistence remain owned by this activity.
+     */
+    @Composable
+    protected open fun MainContent() {
+        NativeHomeScreen(
+            dao = database.nativeDashboardDao(),
+            focusDao = database.nativeFocusDao(),
+            onStartFocus = { sessionType -> startFocusSession(sessionType) },
+            onFinishFocus = { successful -> finishFocusSession(successful) },
+            onSaveFocusProfile = { profile -> saveFocusProfile(profile) },
+            onSaveFocusReflection = { reflection -> saveFocusReflection(reflection) },
+            onRequestOverlayAccess = { requestOverlayAccess() },
+            onApplyRestrictions = { applySavedRestrictions() },
+            onSaveAppRestriction = { saveAppRestriction(it) },
+            onDeleteAppRestriction = { deleteAppRestriction(it) },
+            onSaveRestrictionGroup = { saveRestrictionGroup(it) },
+            onDeleteRestrictionGroup = { deleteRestrictionGroup(it) },
+            onSaveWellbeing = { saveWellbeing(it) }
+        )
     }
 
     private fun loadNativeStartupState() {
