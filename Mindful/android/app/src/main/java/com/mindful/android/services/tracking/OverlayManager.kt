@@ -192,7 +192,7 @@ class OverlayManager(
                 context,
                 USAGE_REMINDERS_CHANNEL_ID
             )
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_dopamine_notification)
                 .setLargeIcon(appIcon.toBitmap())
                 .setContentTitle(appName)
                 .setContentText(msg)
