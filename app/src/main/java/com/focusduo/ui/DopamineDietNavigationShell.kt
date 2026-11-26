@@ -1,13 +1,19 @@
 package com.focusduo.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,19 +21,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * The single navigation container for the Dopamine Diet product.
- *
- * Screen implementations are injected as slots so the existing Mindful and
- * Dopamine Diet features can be integrated without duplicating their data or
- * business logic inside the navigation layer.
- *
- * Habits is the initial destination, as agreed for the product.
+ * Unified four-destination shell. Visual styling is shared here while each
+ * destination continues to own its existing data and feature logic.
  */
 @Composable
 fun DopamineDietNavigationShell(
@@ -38,14 +42,12 @@ fun DopamineDietNavigationShell(
     modifier: Modifier = Modifier
 ) {
     var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
-
     val destinations = listOf(
-        NavigationDestination("Habits", "◉"),
-        NavigationDestination("Scroll", "⌁"),
-        NavigationDestination("Screen time", "▥"),
+        NavigationDestination("Habits", "⌂"),
+        NavigationDestination("Scroll", "⊘"),
+        NavigationDestination("Screen Time", "◷"),
         NavigationDestination("Settings", "⚙")
     )
-
     val content = when (selectedDestination) {
         0 -> habits
         1 -> scroll
@@ -55,39 +57,55 @@ fun DopamineDietNavigationShell(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = Color(0xFF09090D),
+        containerColor = Color(0xFF08090E),
         bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xFF111117),
-                contentColor = Color(0xFFF5F3FA),
-                tonalElevation = 0.dp
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF10111A))
+                    .padding(start = 8.dp, end = 8.dp, top = 9.dp, bottom = 7.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 destinations.forEachIndexed { index, destination ->
-                    NavigationBarItem(
-                        selected = selectedDestination == index,
-                        onClick = { selectedDestination = index },
-                        icon = {
-                            Text(
-                                text = destination.symbol,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = destination.label,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFFC4A7FF),
-                            selectedTextColor = Color(0xFFC4A7FF),
-                            indicatorColor = Color(0xFF292236),
-                            unselectedIconColor = Color(0xFF85818F),
-                            unselectedTextColor = Color(0xFF85818F)
+                    val selected = selectedDestination == index
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { selectedDestination = index }
+                            .padding(vertical = 3.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Text(
+                            text = destination.symbol,
+                            color = if (selected) Color(0xFFC7A2FF) else Color(0xFF858797),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Medium
                         )
-                    )
+                        Text(
+                            text = destination.label,
+                            color = if (selected) Color(0xFFD3B9FF) else Color(0xFF858797),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                        Spacer(Modifier.height(1.dp))
+                        Box(
+                            Modifier
+                                .height(3.dp)
+                                .fillMaxWidth(0.42f)
+                                .clip(RoundedCornerShape(50))
+                                .background(
+                                    if (selected) Brush.horizontalGradient(
+                                        listOf(Color(0xFF8B5CF6), Color(0xFF3D9BFF))
+                                    ) else Brush.horizontalGradient(
+                                        listOf(Color.Transparent, Color.Transparent)
+                                    )
+                                )
+                        )
+                    }
                 }
             }
         }
@@ -95,7 +113,7 @@ fun DopamineDietNavigationShell(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF09090D))
+                .background(Color(0xFF08090E))
                 .padding(innerPadding)
         ) {
             content()
