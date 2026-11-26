@@ -46,13 +46,19 @@ class BrowserManager(
         url = url.replace("google.com/amp/s/amp.", "")
 
         // Block websites
-        val host = Utils.parseHostNameFromUrl(url) ?: return
+        val host = Utils.parseHostNameFromUrl(url)?.let(::normalizeWebsiteHost) ?: return
+        val manuallyBlocked = wellbeing.blockedWebsites.any { blocked ->
+            normalizeWebsiteHost(blocked)?.let { host == it || host.endsWith(".$it") } == true
+        }
+        val adultListBlocked = wellbeing.nsfwWebsites.any { blocked ->
+            normalizeWebsiteHost(blocked)?.let { host == it || host.endsWith(".$it") } == true
+        }
+        val knownAdultDomainBlocked = nsfwDomains.any { (domain, enabled) ->
+            enabled && normalizeWebsiteHost(domain)?.let { host == it || host.endsWith(".$it") } == true
+        }
 
         when {
-            wellbeing.blockedWebsites.contains(host)
-                    || wellbeing.nsfwWebsites.contains(host)
-                    || nsfwDomains[host] ?: false
-                -> {
+            manuallyBlocked || adultListBlocked || knownAdultDomainBlocked -> {
                 Log.d(TAG, "blockDistraction: Blocked website $host opened in $packageName")
                 blockedContentGoBack.invoke()
             }
@@ -161,6 +167,19 @@ class BrowserManager(
 
         fun clearNsfwDomains() {
             nsfwDomains = mapOf()
+        }
+
+
+        private fun normalizeWebsiteHost(value: String): String? {
+            val raw = value.trim().lowercase()
+            val uri = runCatching {
+                java.net.URI(if (raw.contains("://")) raw else "https://$raw")
+            }.getOrNull() ?: return null
+            var host = uri.host?.lowercase()?.trimEnd('.') ?: return null
+            if (host.startsWith("www.")) host = host.removePrefix("www.")
+            if (host.startsWith("mobile.")) host = host.removePrefix("mobile.")
+            if (host.startsWith("m.")) host = host.removePrefix("m.")
+            return host.takeIf { it.isNotBlank() }
         }
 
         /**
