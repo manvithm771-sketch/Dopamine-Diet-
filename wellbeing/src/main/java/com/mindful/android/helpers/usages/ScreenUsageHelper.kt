@@ -102,6 +102,39 @@ object ScreenUsageHelper {
             .filterValues { it > 0L }
     }
 
+
+    /**
+     * Reads Android's persisted daily UsageStats aggregate for a single local day.
+     *
+     * Unlike UsageEvents, which Android retains only for a few days, UsageStats
+     * can return aggregated daily buckets for older dates when the OS still has
+     * those records. The caller must pass one local calendar-day interval.
+     */
+    fun fetchAggregatedUsageForInterval(
+        usageStatsManager: UsageStatsManager,
+        start: Long,
+        end: Long,
+        strict: Boolean = false,
+    ): Map<String, Long> {
+        if (end <= start) return emptyMap()
+
+        return try {
+            usageStatsManager.queryUsageStats(
+                UsageStatsManager.INTERVAL_DAILY,
+                start,
+                end,
+            ).orEmpty()
+                .groupBy { it.packageName }
+                .mapValues { (_, records) ->
+                    records.sumOf { it.totalTimeInForeground.coerceAtLeast(0L) } / 1000L
+                }
+                .filterValues { it > 0L }
+        } catch (error: Exception) {
+            if (strict) throw error
+            emptyMap()
+        }
+    }
+
     /**
      * Fetches all installed applications' usage from midnight until now.
      */
