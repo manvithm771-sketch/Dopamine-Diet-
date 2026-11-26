@@ -497,7 +497,6 @@ private fun ScreenTimeInsightsScreen(
                 Text("A deeper look at your recorded usage", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
             }
         }
-        WeeklyScreenTimeChart(weeklyTotals = weeklyTotals, selectedWeekIndex = selectedWeekIndex)
         InsightSummaryCard("1-year total screen time · 52 weeks", formatScreenDuration(annualTotal))
         WeekdayScreenTimeChart(
             dayTotals = selectedWeekDailyTotals,
