@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 class ReminderManager(
     private val overlayManager: OverlayManager,
-    private val onNewAppLaunched: (packageName: String) -> Unit,
+    private val onRestrictionTimerExpired: (packageName: String) -> Unit,
 ) {
     private val TAG = "Mindful.ReminderManager"
     private val triggerInterval = 10L
@@ -73,7 +73,7 @@ class ReminderManager(
 
             onFinish = {
                 Log.d(TAG, "onFinish: Timer finished for $packageName")
-                onNewAppLaunched.invoke(packageName)
+                onRestrictionTimerExpired.invoke(packageName)
             }
         ).also { it.start() }
 
