@@ -691,7 +691,6 @@ open class MainActivity : ComponentActivity() {
                         ).show()
                     }
                 }
-                refresh52WeekHistoryIfNeeded()
             } catch (error: Exception) {
                 if (showResult) Toast.makeText(
                     this@MainActivity,
