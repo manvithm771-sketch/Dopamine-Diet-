@@ -662,6 +662,32 @@ open class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    private suspend fun refresh52WeekHistoryIfNeeded() {
+        if (!hasUsageAccess()) return
+        val preferences = getSharedPreferences("native_usage_history", MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val lastRefresh = preferences.getLong("last_52_week_refresh", 0L)
+        if (now - lastRefresh < 24L * 60L * 60L * 1_000L) return
+
+        try {
+            when (val result = NativeUsageRepository(
+                applicationContext,
+                database.nativeUsageDao()
+            ).refreshHistory(52)) {
+                is NativeUsageRefreshResult.Updated -> {
+                    preferences.edit().putLong("last_52_week_refresh", now).apply()
+                    android.util.Log.i(
+                        "Mindful",
+                        "52-week usage history refreshed: ${result.rowsWritten} records"
+                    )
+                }
+                NativeUsageRefreshResult.UsageAccessRequired -> Unit
+            }
+        } catch (error: Exception) {
+            android.util.Log.w("Mindful", "52-week usage history refresh failed", error)
+        }
+    }
+
     private fun refreshTodayUsage(showResult: Boolean) {
         val dayStart = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -691,6 +717,7 @@ open class MainActivity : ComponentActivity() {
                         ).show()
                     }
                 }
+                refresh52WeekHistoryIfNeeded()
             } catch (error: Exception) {
                 if (showResult) Toast.makeText(
                     this@MainActivity,
