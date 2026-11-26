@@ -68,7 +68,6 @@ import com.mindful.android.nativeapp.data.local.NativeDailyUsageSummary
 import com.mindful.android.nativeapp.data.local.NativeFocusDao
 import com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeAppRestrictionEntity
-import com.mindful.android.nativeapp.data.local.entity.NativeAppUsageEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeWellbeingEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeFocusProfileEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeFocusSessionEntity
