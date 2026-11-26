@@ -3,6 +3,7 @@ package com.focusduo.ui
 import android.content.pm.PackageManager
 import android.widget.ImageView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.items
@@ -35,6 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -108,6 +113,24 @@ fun DopamineDietScreenTimeDestination(
         .collectAsState(initial = emptyList())
 
     val annualTotal = usage.sumOf { it.totalScreenTime }
+    val currentWeekDailyTotals = remember(daily) {
+        val monday = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            add(Calendar.DAY_OF_YEAR, -((get(Calendar.DAY_OF_WEEK) + 5) % 7))
+        }
+        val start = monday.timeInMillis
+        val end = (monday.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 7) }.timeInMillis
+        val totals = MutableList(7) { 0L }
+        daily.filter { it.dateEpochMillis >= start && it.dateEpochMillis < end }.forEach { day ->
+            val dayCalendar = Calendar.getInstance().apply { timeInMillis = day.dateEpochMillis }
+            val index = (dayCalendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
+            totals[index] += day.totalScreenTime
+        }
+        totals
+    }
     val weeklyTotals = remember(daily, yearRange.third) {
         val totals = MutableList(52) { 0L }
         daily.forEach { day ->
@@ -150,48 +173,7 @@ fun DopamineDietScreenTimeDestination(
             }
         }
         item {
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(21.dp),
-                colors = CardDefaults.cardColors(containerColor = TimeCard)
-            ) {
-                Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Weekly screen time", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        Text("52 WEEKS", color = TimeMuted, style = MaterialTheme.typography.labelSmall)
-                    }
-                    Row(
-                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).height(126.dp),
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        weeklyTotals.forEachIndexed { index, seconds ->
-                            Column(
-                                Modifier.width(13.dp).height(122.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Bottom
-                            ) {
-                                Box(
-                                    Modifier.width(9.dp)
-                                        .height((82f * (seconds.toFloat() / maxWeek).coerceAtLeast(0.035f)).dp)
-                                        .clip(RoundedCornerShape(5.dp))
-                                        .background(Brush.verticalGradient(listOf(TimeViolet, Color(0xFF4B3A87))))
-                                )
-                                Spacer(Modifier.height(5.dp))
-                                if (index % 4 == 0 || index == 51) {
-                                    Text((index + 1).toString(), color = TimeMuted, style = MaterialTheme.typography.labelSmall)
-                                } else {
-                                    Spacer(Modifier.height(12.dp))
-                                }
-                            }
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("52 weeks ago", color = TimeMuted, style = MaterialTheme.typography.labelSmall)
-                        Text("This week", color = TimeMuted, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
+            WeekdayScreenTimeChart(currentWeekDailyTotals)
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -261,6 +243,71 @@ fun DopamineDietScreenTimeDestination(
                 description = "Manage blocked websites, adult-site rules and short-form content restrictions.",
                 onClick = { openedBlockingTool = "websites" }
             )
+        }
+    }
+}
+
+@Composable
+private fun WeekdayScreenTimeChart(dayTotals: List<Long>) {
+    val labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    val axis = listOf("15h", "12h", "8h", "4h", "0s")
+    val maxSeconds = 15L * 60L * 60L
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(244.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Canvas(modifier = Modifier.weight(1f).fillMaxSize().padding(end = 12.dp)) {
+                val chartHeight = size.height
+                val chartWidth = size.width
+                val gridValues = listOf(15f, 12f, 8f, 4f, 0f)
+                gridValues.forEach { hours ->
+                    val y = chartHeight - (hours / 15f) * chartHeight
+                    drawLine(
+                        color = Color(0xFF343640),
+                        start = Offset(0f, y),
+                        end = Offset(chartWidth, y),
+                        strokeWidth = 1.4.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 9.dp.toPx()))
+                    )
+                }
+                val slot = chartWidth / 7f
+                val barWidth = slot * 0.62f
+                dayTotals.forEachIndexed { index, seconds ->
+                    val fraction = (seconds.toFloat() / maxSeconds.toFloat()).coerceIn(0f, 1f)
+                    if (fraction > 0f) {
+                        val barHeight = chartHeight * fraction
+                        val left = index * slot + (slot - barWidth) / 2f
+                        drawRoundRect(
+                            brush = if (index == 0) {
+                                Brush.verticalGradient(listOf(Color(0xFFB6BFFF), Color(0xFF777D9E)))
+                            } else {
+                                Brush.verticalGradient(listOf(Color(0xFF45495B), Color(0xFF242630)))
+                            },
+                            topLeft = Offset(left, chartHeight - barHeight),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
+                        )
+                    }
+                }
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().width(42.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.End
+            ) {
+                axis.forEach { value ->
+                    Text(value, color = TimeMuted, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+            labels.forEach { label ->
+                Text(label, color = TimeMuted, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+            }
         }
     }
 }
