@@ -1843,6 +1843,17 @@ private fun AppDetailContent(
                         }
                     }
                     Text("Restriction group: $groupName")
+                    if (
+                        (timerText.toLongOrNull() ?: 0L) <= 0L &&
+                        (launchLimitText.toLongOrNull() ?: 0L) <= 0L &&
+                        groups.none { it.id == restriction?.associatedGroupId && it.timerSec > 0L }
+                    ) {
+                        Text(
+                            "Set a daily time limit or launch limit to activate app blocking.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(
                             enabled = (timerText.toLongOrNull() ?: 0L) > 0L ||
