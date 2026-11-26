@@ -99,6 +99,8 @@ fun NativeHomeScreen(
     onSaveRestrictionGroup: (NativeRestrictionGroupEntity) -> Unit = {},
     onDeleteRestrictionGroup: (Long) -> Unit = {},
     onSaveWellbeing: (NativeWellbeingEntity) -> Unit = {},
+    startOnStatistics: Boolean = false,
+    showInternalNavigation: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var weekOffset by remember { mutableStateOf(0) }
@@ -158,7 +160,7 @@ fun NativeHomeScreen(
 
     val context = LocalContext.current
     val tabs = NativeTab.values().filterNot { it == NativeTab.FOCUS || it == NativeTab.APPS }
-    var selectedTab by remember { mutableStateOf(NativeTab.DASHBOARD) }
+    var selectedTab by remember { mutableStateOf(if (startOnStatistics) NativeTab.STATISTICS else NativeTab.DASHBOARD) }
     var selectedApp by remember { mutableStateOf<String?>(null) }
     val selectedAppUsage by dao.observeAppUsage(
         selectedApp ?: "",
@@ -186,14 +188,16 @@ fun NativeHomeScreen(
                 }
             },
             bottomBar = {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = selectedTab == tab,
-                            onClick = { selectedTab = tab },
-                            icon = { Text(tab.symbol, style = MaterialTheme.typography.titleLarge) },
-                            label = { Text(tab.label) }
-                        )
+                if (showInternalNavigation) {
+                    NavigationBar {
+                        tabs.forEach { tab ->
+                            NavigationBarItem(
+                                selected = selectedTab == tab,
+                                onClick = { selectedTab = tab },
+                                icon = { Text(tab.symbol, style = MaterialTheme.typography.titleLarge) },
+                                label = { Text(tab.label) }
+                            )
+                        }
                     }
                 }
             }
