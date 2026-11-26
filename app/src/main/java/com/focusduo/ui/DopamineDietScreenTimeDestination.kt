@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -402,7 +403,11 @@ private fun ScreenTimeInsightsScreen(
 ) {
     val highestWeek = weeklyTotals.maxOrNull() ?: 0L
     val averageWeek = if (weeklyTotals.isNotEmpty()) weeklyTotals.sum() / weeklyTotals.size else 0L
-    Column(Modifier.fillMaxSize().background(TimeBg).padding(horizontal = 20.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(
+        Modifier.fillMaxSize().background(TimeBg).verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("‹", color = TimeText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
             Column {
@@ -410,6 +415,7 @@ private fun ScreenTimeInsightsScreen(
                 Text("A deeper look at your recorded usage", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
             }
         }
+        WeeklyScreenTimeChart(weeklyTotals = weeklyTotals, selectedWeekIndex = selectedWeekIndex)
         InsightSummaryCard("Total · 52 weeks", formatScreenDuration(annualTotal))
         InsightSummaryCard("Average per week", formatScreenDuration(averageWeek))
         InsightSummaryCard("Highest week", formatScreenDuration(highestWeek))
@@ -431,6 +437,68 @@ private fun ScreenTimeInsightsScreen(
             }
         }
         Text("Insights use usage records available on this device. Missing historical records are not estimated.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun WeeklyScreenTimeChart(
+    weeklyTotals: List<Long>,
+    selectedWeekIndex: Int
+) {
+    val maxWeekly = (weeklyTotals.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val chartWidth = 52 * 14
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = TimeCard)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Weekly screen time", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("Last 52 weeks", color = TimeMuted, style = MaterialTheme.typography.labelMedium)
+            }
+            Text("Each bar represents one week", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+            Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                Canvas(Modifier.width(chartWidth.dp).height(172.dp)) {
+                    val chartHeight = size.height
+                    val slot = size.width / 52f
+                    listOf(0.25f, 0.5f, 0.75f, 1f).forEach { fraction ->
+                        val y = chartHeight * (1f - fraction)
+                        drawLine(
+                            color = Color(0xFF343640),
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = 1.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
+                        )
+                    }
+                    weeklyTotals.take(52).forEachIndexed { index, total ->
+                        val fraction = (total.toFloat() / maxWeekly.toFloat()).coerceIn(0f, 1f)
+                        val barHeight = chartHeight * fraction
+                        val barWidth = slot * 0.58f
+                        val left = index * slot + (slot - barWidth) / 2f
+                        if (barHeight > 0f) {
+                            drawRoundRect(
+                                color = if (index == selectedWeekIndex) Color(0xFFB6BFFF) else Color(0xFF777D9E),
+                                topLeft = Offset(left, chartHeight - barHeight),
+                                size = Size(barWidth, barHeight),
+                                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
+                            )
+                        }
+                    }
+                }
+                Row(Modifier.width(chartWidth.dp).padding(top = 7.dp)) {
+                    (0 until 52).forEach { index ->
+                        Box(Modifier.width(14.dp), contentAlignment = Alignment.Center) {
+                            if (index % 4 == 0 || index == 51) {
+                                Text((index + 1).toString(), color = TimeMuted, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+            Text("Weeks with no recorded usage appear empty. Scroll horizontally to view all 52 weeks.", color = TimeMuted, style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 
