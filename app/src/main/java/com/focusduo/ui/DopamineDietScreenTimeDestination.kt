@@ -161,7 +161,20 @@ fun DopamineDietScreenTimeDestination(
     val appRows = usage.sortedByDescending { it.totalScreenTime }
     if (showInsights) {
         BackHandler(enabled = true) { showInsights = false }
-        ScreenTimeInsightsScreen(annualTotal, weeklyTotals, appRows, context.packageManager) { showInsights = false }
+        ScreenTimeInsightsScreen(
+            annualTotal = annualTotal,
+            weeklyTotals = weeklyTotals,
+            appRows = appRows,
+            packageManager = context.packageManager,
+            selectedWeekDailyTotals = selectedWeekDailyTotals,
+            selectedWeekIndex = selectedWeekIndex,
+            selectedWeekStart = selectedWeekStart,
+            canGoPrevious = selectedWeekIndex > 0,
+            canGoNext = selectedWeekIndex < 51,
+            onPreviousWeek = { if (selectedWeekIndex > 0) selectedWeekIndex-- },
+            onNextWeek = { if (selectedWeekIndex < 51) selectedWeekIndex++ },
+            onBack = { showInsights = false }
+        )
         return
     }
 
@@ -202,17 +215,6 @@ fun DopamineDietScreenTimeDestination(
                     Text("52-week history", color = TimeMint, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
-        }
-        item {
-            WeekdayScreenTimeChart(
-                dayTotals = selectedWeekDailyTotals,
-                weekNumber = selectedWeekIndex + 1,
-                weekStartMillis = selectedWeekStart,
-                canGoPrevious = selectedWeekIndex > 0,
-                canGoNext = selectedWeekIndex < 51,
-                onPrevious = { if (selectedWeekIndex > 0) selectedWeekIndex-- },
-                onNext = { if (selectedWeekIndex < 51) selectedWeekIndex++ }
-            )
         }
         item {
             BlockingActionCard(
@@ -365,6 +367,13 @@ private fun ScreenTimeInsightsScreen(
     weeklyTotals: List<Long>,
     appRows: List<NativeAppUsageSummary>,
     packageManager: PackageManager,
+    selectedWeekDailyTotals: List<Long>,
+    selectedWeekIndex: Int,
+    selectedWeekStart: Long,
+    canGoPrevious: Boolean,
+    canGoNext: Boolean,
+    onPreviousWeek: () -> Unit,
+    onNextWeek: () -> Unit,
     onBack: () -> Unit
 ) {
     val highestWeek = weeklyTotals.maxOrNull() ?: 0L
@@ -380,6 +389,15 @@ private fun ScreenTimeInsightsScreen(
         InsightSummaryCard("Total · 52 weeks", formatScreenDuration(annualTotal))
         InsightSummaryCard("Average per week", formatScreenDuration(averageWeek))
         InsightSummaryCard("Highest week", formatScreenDuration(highestWeek))
+        WeekdayScreenTimeChart(
+            dayTotals = selectedWeekDailyTotals,
+            weekNumber = selectedWeekIndex + 1,
+            weekStartMillis = selectedWeekStart,
+            canGoPrevious = canGoPrevious,
+            canGoNext = canGoNext,
+            onPrevious = onPreviousWeek,
+            onNext = onNextWeek
+        )
         Text("Top apps · last 52 weeks", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         appRows.take(8).forEach { app ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
