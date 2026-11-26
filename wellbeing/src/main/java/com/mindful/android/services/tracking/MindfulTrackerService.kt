@@ -108,6 +108,9 @@ class MindfulTrackerService : Service() {
                 withContext(Dispatchers.Main) {
                     restrictionManager.updateRestrictions(rules.apps, rules.groups)
                 }
+                // The tracker may already have detected the foreground app before Room rules
+                // finished loading. Re-evaluate it now that the saved restrictions are active.
+                launchTrackingManager.reInvokeLastLaunchEvent()
                 Log.i(
                     TAG,
                     "restoreSavedRestrictions: Restored ${rules.apps.size} app rules and ${rules.groups.size} group rules"
