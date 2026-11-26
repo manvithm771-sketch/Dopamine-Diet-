@@ -9,6 +9,7 @@ import com.mindful.android.models.RestrictionGroup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -18,6 +19,15 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class RestrictionManagerTest {
+    @Before
+    fun clearPersistedLaunchCounts() {
+        RuntimeEnvironment.getApplication()
+            .getSharedPreferences("app_blocking_launch_counts", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+    }
+
     private fun manager(usage: () -> Map<String, Long>): RestrictionManager {
         val context = RuntimeEnvironment.getApplication()
         val usageStats = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -91,6 +101,38 @@ class RestrictionManagerTest {
         assertEquals(
             RestrictionType.LAUNCH_COUNT,
             tracker.isAppRestricted("com.example.video")?.type
+        )
+    }
+
+    @Test
+    fun dailyLaunchCountsSurviveTrackerRecreation() {
+        val context = RuntimeEnvironment.getApplication()
+        val usageStats = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val firstTracker = RestrictionManager(context, {}, usageStats) { emptyMap() }
+        firstTracker.updateRestrictions(
+            hashMapOf("com.example.video" to AppRestriction(
+                appPackage = "com.example.video",
+                launchLimit = 2
+            )),
+            hashMapOf()
+        )
+        assertNull(firstTracker.isAppRestricted("com.example.video"))
+        assertEquals(1, firstTracker.getAppsLaunchCount["com.example.video"])
+
+        val recreatedTracker = RestrictionManager(context, {}, usageStats) { emptyMap() }
+        recreatedTracker.updateRestrictions(
+            hashMapOf("com.example.video" to AppRestriction(
+                appPackage = "com.example.video",
+                launchLimit = 2
+            )),
+            hashMapOf()
+        )
+        assertEquals(1, recreatedTracker.getAppsLaunchCount["com.example.video"])
+        assertNull(recreatedTracker.isAppRestricted("com.example.video"))
+        assertEquals(2, recreatedTracker.getAppsLaunchCount["com.example.video"])
+        assertEquals(
+            RestrictionType.LAUNCH_COUNT,
+            recreatedTracker.isAppRestricted("com.example.video")?.type
         )
     }
 
