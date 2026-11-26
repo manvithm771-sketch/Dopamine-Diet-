@@ -37,8 +37,8 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
-    debugImplementation(libs.compose.ui.tooling)
-    implementation(libs.room.runtime)
+    // NativeDatabaseProvider and MindfulNativeDatabase are consumed by :app.
+    api(libs.room.runtime)
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
     implementation(libs.datastore.preferences)
