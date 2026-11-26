@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -157,7 +156,6 @@ fun DopamineDietScreenTimeDestination(
         }
         totals
     }
-    val maxApp = usage.maxOfOrNull { it.totalScreenTime }?.coerceAtLeast(1L) ?: 1L
     val appRows = usage.sortedByDescending { it.totalScreenTime }
     if (showInsights) {
         BackHandler(enabled = true) { showInsights = false }
@@ -271,12 +269,6 @@ fun DopamineDietScreenTimeDestination(
                         }
                         Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
                     }
-                    LinearProgressIndicator(
-                        progress = { (app.totalScreenTime.toFloat() / maxApp).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth().padding(start = 49.dp).height(6.dp).clip(CircleShape),
-                        color = TimeViolet,
-                        trackColor = Color(0xFF292A3B)
-                    )
                 }
             }
         }
@@ -306,7 +298,6 @@ private fun AllScreenTimeAppsScreen(
     packageManager: PackageManager,
     onBack: () -> Unit
 ) {
-    val maxApp = appRows.maxOfOrNull { it.totalScreenTime }?.coerceAtLeast(1L) ?: 1L
     Column(Modifier.fillMaxSize().background(TimeBg)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("‹", color = TimeText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
@@ -336,12 +327,6 @@ private fun AllScreenTimeAppsScreen(
                             Text(label, color = TimeText, modifier = Modifier.weight(1f).padding(start = 11.dp), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                             Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
                         }
-                        LinearProgressIndicator(
-                            progress = { (app.totalScreenTime.toFloat() / maxApp).coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth().padding(start = 49.dp).height(6.dp).clip(CircleShape),
-                            color = TimeViolet,
-                            trackColor = Color(0xFF292A3B)
-                        )
                     }
                 }
             }
