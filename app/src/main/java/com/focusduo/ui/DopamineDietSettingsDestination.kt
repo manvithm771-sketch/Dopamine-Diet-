@@ -81,7 +81,7 @@ fun DopamineDietSettingsDestination(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("YOUR APP", color = Color(0xFFB69AFF), style = MaterialTheme.typography.labelMedium)
+                Text("YOUR APP", color = Color(0xFFAA83FF), style = MaterialTheme.typography.labelMedium)
                 Text(
                     "Settings",
                     color = Color(0xFFF7F5FC),
@@ -90,7 +90,7 @@ fun DopamineDietSettingsDestination(
                 )
                 Text(
                     "Manage focus tools, app controls and Android permissions.",
-                    color = Color(0xFFAAA4B7),
+                    color = Color(0xFFB3B2C5),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -168,8 +168,8 @@ private fun SettingsCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF17171F))
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1C2B))
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -177,9 +177,9 @@ private fun SettingsCard(
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(title, color = Color(0xFFF7F5FC), style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, color = Color(0xFFAAA4B7), style = MaterialTheme.typography.bodySmall)
+                Text(subtitle, color = Color(0xFFB3B2C5), style = MaterialTheme.typography.bodySmall)
             }
-            TextButton(onClick = onClick) { Text(action, color = Color(0xFFB69AFF)) }
+            TextButton(onClick = onClick) { Text(action, color = Color(0xFFAA83FF)) }
         }
     }
 }
