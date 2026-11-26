@@ -1,5 +1,14 @@
 name: Build Dopamine Diet APK
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.kt"
+      - "**/*.kts"
+      - "**/*.xml"
+      - "gradle/**"
+      - "gradlew"
+      - ".github/workflows/build-dopamine-diet.yml"
   push:
     branches: [main]
     paths:
