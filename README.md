@@ -22,3 +22,7 @@ Requires JDK 17 and Android SDK 35.
 ```
 
 The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
+
+## APK delivery
+
+APK builds are published only as GitHub Actions workflow artifacts. Open the latest successful **Build Dopamine Diet APK** workflow run and download the **Dopamine-Diet-debug-apk** artifact, then extract `app-debug.apk`. The build workflow does not publish APKs as GitHub release assets.
