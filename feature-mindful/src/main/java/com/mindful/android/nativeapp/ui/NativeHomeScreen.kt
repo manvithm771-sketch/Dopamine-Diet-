@@ -1663,7 +1663,7 @@ private fun AppDetailContent(
             item {
                 InfoCard(
                     title = "Protected system app",
-                    body = "Restriction controls are disabled for the default launcher, dialer, Settings, and Mindful to protect essential phone functions."
+                    body = "Restriction controls are disabled for the default launcher, dialer, Settings, and Dopamine Diet to protect essential phone functions."
                 )
             }
         } else {

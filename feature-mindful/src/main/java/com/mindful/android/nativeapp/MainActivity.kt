@@ -87,7 +87,7 @@ open class MainActivity : ComponentActivity() {
             } else if (startupError != null) {
                 AlertDialog(
                     onDismissRequest = {},
-                    title = { Text("Mindful could not finish startup") },
+                    title = { Text("Dopamine Diet could not finish startup") },
                     text = {
                         Text(
                             "The app stopped before opening your data because recovery or migration " +

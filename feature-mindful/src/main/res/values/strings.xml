@@ -10,7 +10,7 @@
   ~  */
   -->
 <resources>
-    <string name="accessibility_description" formatted="false">The Mindful app uses accessibility services to block websites and short-form content on apps. It checks URLs and content against your blocklist and prevents access to help you stay focused.\n\n⚠️Note: Your privacy is our priority.Mindful is 100% secure and works offline. We do not collect or store any personal data.</string>
+    <string name="accessibility_description" formatted="false">Dopamine Diet uses accessibility services to block websites and short-form content on apps. It checks URLs and content against your blocklist and prevents access to help you stay focused.\n\n⚠️Note: Your privacy is our priority.Dopamine Diet processes this information locally and works offline. We do not collect or store any personal data.</string>
     <string name="toast_blocked_content">Content blocked! going back</string>
     <string name="toast_redirecting">Filtering search results</string>
     <string name="toast_dnd_utilized_by_feature" comment="Placeholder is the name of feature like Focus mode, Bedtime or more" formatted="true">%s is currently using DND mode.</string>
@@ -66,7 +66,7 @@
     <string name="focus_session_giveup_notification_info">You gave up! Don\'t worry, you can do better next time. Every effort counts - just keep going</string>
 
     <string name="dashboard_screen_time_today">Screen time today</string>
-    <string name="dashboard_recorded_usage">Recorded usage from your local Mindful database</string>
+    <string name="dashboard_recorded_usage">Recorded usage from your local Dopamine Diet database</string>
     <string name="dashboard_restricted_apps">Restricted apps</string>
     <string name="dashboard_app_rules">App rules</string>
     <string name="dashboard_focus_sessions">Focus sessions</string>

@@ -59,9 +59,9 @@ fun NativeOnboardingScreen(
                 .padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text("Set up Mindful", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("Set up Dopamine Diet", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(
-                "Grant the essential Android permissions so Mindful can measure app usage and show restriction controls. You can review or revoke these permissions later in Android Settings.",
+                "Grant the essential Android permissions so Dopamine Diet can measure app usage and show restriction controls. You can review or revoke these permissions later in Android Settings.",
                 style = MaterialTheme.typography.bodyMedium
             )
             PermissionCard(
@@ -72,7 +72,7 @@ fun NativeOnboardingScreen(
             )
             PermissionCard(
                 title = "Display over other apps",
-                description = "Required to display Mindful's restriction screen over a distracting app.",
+                description = "Required to display Dopamine Diet's restriction screen over a distracting app.",
                 granted = permissions.overlayAccess,
                 onGrant = onRequestOverlayAccess
             )

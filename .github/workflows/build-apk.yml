@@ -36,13 +36,13 @@ jobs:
       - name: Run unit tests
         run: gradle test --no-daemon --stacktrace
 
-      - name: Build release APK
-        run: gradle :app:assembleRelease --no-daemon --stacktrace
+      - name: Build installable debug APK
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK to Actions Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Dopamine-Diet-APK
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 7
