@@ -114,7 +114,7 @@ object NotificationHelper {
      */
     fun buildFgServiceNotification(context: Context, content: String?): Notification {
         return NotificationCompat.Builder(context, SERVICE_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_dopamine_notification)
             .setOngoing(true)
             .setAutoCancel(true)
             .setContentTitle(context.getString(R.string.service_running_notification_title))
@@ -148,7 +148,7 @@ object NotificationHelper {
                 context,
                 CRITICAL_CHANNEL_ID
             )
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_dopamine_notification)
                 .setAutoCancel(true)
                 .setContentTitle(context.getString(R.string.overlay_permission_denied_notification_title))
                 .setContentText(msg)
