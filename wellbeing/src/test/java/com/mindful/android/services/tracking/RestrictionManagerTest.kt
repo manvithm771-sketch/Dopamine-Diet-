@@ -72,6 +72,29 @@ class RestrictionManagerTest {
     }
 
     @Test
+    fun recheckingCurrentAppDoesNotConsumeAnotherLaunch() {
+        val tracker = manager { emptyMap() }
+        tracker.updateRestrictions(
+            hashMapOf("com.example.video" to AppRestriction(
+                appPackage = "com.example.video",
+                launchLimit = 1
+            )),
+            hashMapOf()
+        )
+
+        assertNull(tracker.isAppRestricted("com.example.video"))
+        assertEquals(1, tracker.getAppsLaunchCount["com.example.video"])
+
+        assertNull(tracker.recheckAppRestriction("com.example.video"))
+        assertEquals(1, tracker.getAppsLaunchCount["com.example.video"])
+
+        assertEquals(
+            RestrictionType.LAUNCH_COUNT,
+            tracker.isAppRestricted("com.example.video")?.type
+        )
+    }
+
+    @Test
     fun groupTimerSumsUsageAcrossAllMembers() {
         val tracker = manager {
             mapOf("com.example.video" to 300L, "com.example.social" to 250L)
