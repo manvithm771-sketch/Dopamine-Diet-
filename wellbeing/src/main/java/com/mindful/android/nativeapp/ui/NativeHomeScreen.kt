@@ -1397,7 +1397,7 @@ private fun WebsiteBlockContent(
         }
         item {
             Text(
-                if (blockedSites.isEmpty()) "Blocked websites" else "Blocked websites (\${blockedSites.size})",
+                if (blockedSites.isEmpty()) "Blocked websites" else "Blocked websites (${blockedSites.size})",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
