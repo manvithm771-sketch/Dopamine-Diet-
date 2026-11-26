@@ -2,9 +2,9 @@ package com.focusduo.ui
 
 import android.content.pm.PackageManager
 import android.widget.ImageView
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mindful.android.nativeapp.data.local.NativeDatabaseProvider
 import java.util.Calendar
-import java.util.Locale
 
 private val TimeBg = Color(0xFF08090E)
 private val TimeCard = Color(0xFF171923)
