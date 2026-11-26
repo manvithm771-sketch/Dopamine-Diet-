@@ -113,12 +113,16 @@ internal class NativeRestrictionController(context: Context) {
         if (rules.apps.isEmpty() && rules.groups.isEmpty()) {
             if (connection.isActive) {
                 connection.service?.getRestrictionManager?.updateRestrictions(hashMapOf(), hashMapOf())
+                // The service shuts down its tracker when its final rule is removed.
+                // Unbind as well so a later rule save creates a fresh service instance.
+                connection.unBindService()
             } else {
                 // The tracker may outlive this Activity because it is a started foreground
-                // service. Bind to it when it is still running so an empty Room state clears
-                // restrictions left in the service from an earlier preview session.
+                // service. Bind once to clear stale in-memory rules, then release the binding
+                // so the service can finish stopping cleanly.
                 connection.setOnConnectedCallback { service ->
                     service.getRestrictionManager.updateRestrictions(hashMapOf(), hashMapOf())
+                    connection.unBindService()
                 }
                 connection.bindService()
             }
