@@ -54,12 +54,23 @@ internal class NativeUsageRepository(
             Context.NETWORK_STATS_SERVICE
         ) as NetworkStatsManager
 
-        val screenUsage = ScreenUsageHelper.fetchUsageForInterval(
+        // Prefer Android's calendar-aligned daily aggregate for the current day.
+        // UsageEvents are retained for a shorter window and their activity transitions can
+        // be incomplete on some Android builds, so use them only as a fallback.
+        val aggregatedScreenUsage = ScreenUsageHelper.fetchAggregatedUsageForInterval(
             usageStatsManager,
             dayStartEpochMillis,
             endEpochMillis,
             strict = true
         )
+        val screenUsage = aggregatedScreenUsage.ifEmpty {
+            ScreenUsageHelper.fetchUsageForInterval(
+                usageStatsManager,
+                dayStartEpochMillis,
+                endEpochMillis,
+                strict = true
+            )
+        }
         val mobileUsage = NetworkUsageHelper.fetchMobileUsageForInterval(
             networkStatsManager,
             dayStartEpochMillis,
