@@ -1278,72 +1278,7 @@ private fun AppsContent(
                 }
             }
         }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Restriction groups", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = {
-                    editingGroup = null
-                    groupDialogVisible = true
-                }) { Text("Add group") }
-            }
-        }
-        if (groups.isEmpty()) {
-            item { InfoCard("No restriction groups", "Create a group to organize distracting apps under a shared timer.") }
-        } else {
-            items(groups, key = { it.id }) { group ->
-                Card(shape = RoundedCornerShape(18.dp)) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(group.groupName, fontWeight = FontWeight.SemiBold)
-                        Text("Timer: ${group.timerSec} seconds")
-                        Text(
-                            "Apps: ${nativeGroupAppLabels(jsonItems(group.distractingAppsJson), installedApps.associate { it.packageName to it.label })}"
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = {
-                                editingGroup = group
-                                groupDialogVisible = true
-                            }) { Text("Edit") }
-                            TextButton(onClick = { onDeleteRestrictionGroup(group.id) }) {
-                                Text("Delete")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Website and wellbeing rules", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { wellbeingDialogVisible = true }) { Text("Edit") }
-            }
-        }
-        item {
-            InfoCard(
-                title = if (wellbeing?.blockNsfwSites == true) "Adult-site blocking enabled" else "Adult-site blocking disabled",
-                body = "Allowed short-video time: ${wellbeing?.allowedShortsTimeSec ?: 1800L} seconds\n" +
-                    "Blocked websites: ${jsonItems(wellbeing?.blockedWebsitesJson ?: "[]").size}\n" +
-                    "Blocked features: ${jsonItems(wellbeing?.blockedFeaturesJson ?: "[]").size}\n" +
-                    "Adult-site list: ${jsonItems(wellbeing?.nsfwWebsitesJson ?: "[]").size}"
-            )
-        }
-        val blockedSites = jsonItems(wellbeing?.blockedWebsitesJson ?: "[]")
-        item { Text("Blocked websites", style = MaterialTheme.typography.titleMedium) }
-        if (blockedSites.isEmpty()) {
-            item { InfoCard("No blocked websites", "No blocked websites are saved yet.") }
-        } else {
-            items(blockedSites) { site -> InfoCard(title = site, body = "Saved website restriction") }
-        }
+
     }
     if (groupDialogVisible) {
         RestrictionGroupEditorDialog(
