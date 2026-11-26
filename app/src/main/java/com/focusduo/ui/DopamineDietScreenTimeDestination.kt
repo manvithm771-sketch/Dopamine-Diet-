@@ -121,6 +121,20 @@ fun DopamineDietScreenTimeDestination(
     val daily by database.nativeDashboardDao()
         .observeDailyUsageRange(yearRange.first, yearRange.second)
         .collectAsState(initial = emptyList())
+    val todayRange = remember {
+        val start = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val end = (start.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 1) }
+        start.timeInMillis to end.timeInMillis
+    }
+    val todayApps by database.nativeDashboardDao()
+        .observeUsageForRange(todayRange.first, todayRange.second)
+        .collectAsState(initial = emptyList())
+    val todayTotal = todayApps.sumOf { it.totalScreenTime }
 
     // Sum the daily aggregates so the annual figure uses the same 52-week dataset as the chart.
     val annualTotal = daily.sumOf { it.totalScreenTime }
@@ -199,6 +213,29 @@ fun DopamineDietScreenTimeDestination(
                     Text("Your screen usage over the last 52 weeks.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
                 }
                 ScreenStatisticsIcon(Modifier.size(42.dp).clip(CircleShape).clickable { showInsights = true }.padding(10.dp))
+            }
+        }
+        item {
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = TimeCard)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Today", color = TimeMuted, style = MaterialTheme.typography.labelLarge)
+                        Text(formatScreenDuration(todayTotal), color = TimeText, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (todayApps.isEmpty()) "No app usage recorded today" else "${todayApps.size} apps with recorded usage",
+                            color = TimeMuted,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Text("TODAY", color = TimeMint, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                }
             }
         }
         item {
