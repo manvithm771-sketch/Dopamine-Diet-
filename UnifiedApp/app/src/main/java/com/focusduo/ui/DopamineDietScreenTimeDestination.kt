@@ -18,6 +18,7 @@ fun DopamineDietScreenTimeDestination() {
         dao = database.nativeDashboardDao(),
         focusDao = database.nativeFocusDao(),
         startOnStatistics = true,
-        showInternalNavigation = false
+        showInternalNavigation = false,
+        forceDopamineDietTheme = true
     )
 }
