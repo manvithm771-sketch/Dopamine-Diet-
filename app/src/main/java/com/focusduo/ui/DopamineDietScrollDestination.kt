@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -27,6 +28,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.reeltracker.service.BrainRot
 import com.reeltracker.service.ReelAccessibilityService
 import com.reeltracker.service.ReelServiceState
 import com.reeltracker.service.ReelWidgetProvider
@@ -90,19 +94,16 @@ fun DopamineDietScrollDestination() {
         verticalArrangement = Arrangement.spacedBy(15.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(48.dp).clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(ScrollViolet, Color(0xFF4723A8)))),
-                    contentAlignment = Alignment.Center
-                ) { Text("⊘", color = Color.White, style = MaterialTheme.typography.headlineLarge) }
-                Column(Modifier.weight(1f).padding(start = 13.dp)) {
-                    Text("Scroll", color = ScrollText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Less Scroll. More Life.", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
-                }
-                TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
-                    Text("ⓘ", color = ScrollMuted, style = MaterialTheme.typography.headlineSmall)
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Scroll",
+                    color = ScrollText,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
         item {
@@ -119,7 +120,11 @@ fun DopamineDietScrollDestination() {
                         strokeWidth = 11.dp
                     )
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("▣", color = ScrollViolet, style = MaterialTheme.typography.displaySmall)
+                        Image(
+                            painter = painterResource(id = BrainRot.sprite(BrainRot.stage(totalToday))),
+                            contentDescription = "Brain status: ${BrainRot.label(BrainRot.stage(totalToday))}",
+                            modifier = Modifier.size(width = 76.dp, height = 64.dp)
+                        )
                         Text("$totalToday", color = ScrollText, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                         Text("Reels + Shorts", color = ScrollMuted, style = MaterialTheme.typography.labelMedium)
                     }
