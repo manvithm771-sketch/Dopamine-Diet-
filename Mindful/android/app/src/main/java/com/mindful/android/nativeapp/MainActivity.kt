@@ -50,7 +50,7 @@ import java.util.Calendar
  * Production native Android entry point. The application is hosted by Kotlin and Jetpack Compose.
  */
 open class MainActivity : ComponentActivity() {
-    private val database by lazy { NativeDatabaseProvider.get(applicationContext) }
+    protected val database by lazy { NativeDatabaseProvider.get(applicationContext) }
     private var restrictionController: NativeRestrictionController? = null
     private val focusServiceController by lazy { NativeFocusServiceController(applicationContext) }
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -260,7 +260,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun saveFocusProfile(profile: com.mindful.android.nativeapp.data.local.entity.NativeFocusProfileEntity) {
+    protected fun saveFocusProfile(profile: com.mindful.android.nativeapp.data.local.entity.NativeFocusProfileEntity) {
         lifecycleScope.launch {
             try {
                 check(database.nativeFocusDao().getActiveSession() == null) {
@@ -282,7 +282,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun saveAppRestriction(rule: NativeAppRestrictionEntity) {
+    protected fun saveAppRestriction(rule: NativeAppRestrictionEntity) {
         lifecycleScope.launch {
             try {
                 database.nativeRestrictionDao().saveRestriction(rule)
@@ -298,7 +298,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun deleteAppRestriction(packageName: String) {
+    protected fun deleteAppRestriction(packageName: String) {
         lifecycleScope.launch {
             try {
                 database.nativeRestrictionDao().deleteRestriction(packageName)
@@ -314,7 +314,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun saveRestrictionGroup(group: com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity) {
+    protected fun saveRestrictionGroup(group: com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity) {
         lifecycleScope.launch {
             try {
                 val dao = database.nativeRestrictionDao()
@@ -334,7 +334,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun saveWellbeing(settings: com.mindful.android.nativeapp.data.local.entity.NativeWellbeingEntity) {
+    protected fun saveWellbeing(settings: com.mindful.android.nativeapp.data.local.entity.NativeWellbeingEntity) {
         lifecycleScope.launch {
             try {
                 database.nativeRestrictionDao().saveWellbeing(settings)
@@ -353,7 +353,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun deleteRestrictionGroup(groupId: Long) {
+    protected fun deleteRestrictionGroup(groupId: Long) {
         lifecycleScope.launch {
             try {
                 val restrictionDao = database.nativeRestrictionDao()
@@ -370,7 +370,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestOverlayAccess() {
+    protected fun requestOverlayAccess() {
         startActivity(
             Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -379,7 +379,7 @@ open class MainActivity : ComponentActivity() {
         )
     }
 
-    private fun applySavedRestrictions() {
+    protected fun applySavedRestrictions() {
         if (!hasUsageAccess()) {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             return
@@ -466,7 +466,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startFocusSession(sessionType: Long) {
+    protected fun startFocusSession(sessionType: Long) {
         lifecycleScope.launch {
             try {
                 val profile = database.nativeFocusDao().getProfile(sessionType)
@@ -514,7 +514,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun saveFocusReflection(reflection: String) {
+    protected fun saveFocusReflection(reflection: String) {
         lifecycleScope.launch {
             try {
                 val saved = NativeFocusRepository(database.nativeFocusDao())
@@ -536,7 +536,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun finishFocusSession(successful: Boolean) {
+    protected fun finishFocusSession(successful: Boolean) {
         lifecycleScope.launch {
             try {
                 val active = database.nativeFocusDao().getActiveSession()
