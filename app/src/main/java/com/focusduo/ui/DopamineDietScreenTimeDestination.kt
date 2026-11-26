@@ -57,6 +57,7 @@ import com.mindful.android.nativeapp.ui.NativeHomeScreen
 import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Locale
+import org.json.JSONArray
 
 private val TimeBg = Color(0xFF08090E)
 private val TimeCard = Color(0xFF171923)
@@ -77,6 +78,15 @@ fun DopamineDietScreenTimeDestination(
     val context = LocalContext.current
     LaunchedEffect(Unit) { onRefreshUsage() }
     val database = remember(context) { NativeDatabaseProvider.get(context) }
+    val excludedAppsJson by database.nativeDashboardDao().observeExcludedAppsJson().collectAsState(initial = "[]")
+    val excludedPackages = remember(excludedAppsJson) {
+        runCatching {
+            val json = JSONArray(excludedAppsJson ?: "[]")
+            (0 until json.length()).mapNotNull { index ->
+                json.optString(index).takeIf { it.isNotBlank() }
+            }.toSet()
+        }.getOrDefault(emptySet())
+    }
     var openedBlockingTool by remember { mutableStateOf<String?>(null) }
     var showInsights by remember { mutableStateOf(false) }
     var showAllApps by remember { mutableStateOf(false) }
@@ -118,9 +128,19 @@ fun DopamineDietScreenTimeDestination(
     val daily by database.nativeDashboardDao()
         .observeDailyUsageRange(historyRange.first, historyRange.second)
         .collectAsState(initial = emptyList())
-    val dailyTotals = remember(daily, historyRange.third) {
+    val visibleUsage = remember(usage, excludedPackages) {
+        usage.filterNot { it.packageName in excludedPackages }
+    }
+    val visibleDaily = remember(daily, excludedPackages) {
+        if (excludedPackages.isEmpty()) daily else daily
+    }
+    val dailyTotals = remember(visibleUsage, visibleDaily, historyRange.third) {
         historyRange.third.map { day ->
-            daily.firstOrNull { it.dateEpochMillis == day }?.totalScreenTime ?: 0L
+            visibleUsage.filter { row ->
+                val rowDate = historyRange.third.firstOrNull { it == day }
+                rowDate != null && row.totalScreenTime > 0L
+            }.sumOf { it.totalScreenTime }.takeIf { it > 0L }
+                ?: visibleDaily.firstOrNull { it.dateEpochMillis == day }?.totalScreenTime ?: 0L
         }
     }
     val todayRange = remember {
@@ -136,9 +156,12 @@ fun DopamineDietScreenTimeDestination(
     val todayApps by database.nativeDashboardDao()
         .observeUsageForRange(todayRange.first, todayRange.second)
         .collectAsState(initial = emptyList())
-    val todayTotal = todayApps.sumOf { it.totalScreenTime }
-    val historyTotal = daily.sumOf { it.totalScreenTime }
-    val appRows = usage.sortedByDescending { it.totalScreenTime }
+    val visibleTodayApps = remember(todayApps, excludedPackages) {
+        todayApps.filterNot { it.packageName in excludedPackages }
+    }
+    val todayTotal = visibleTodayApps.sumOf { it.totalScreenTime }
+    val historyTotal = dailyTotals.sum()
+    val appRows = visibleUsage.sortedByDescending { it.totalScreenTime }
     if (showInsights) {
         BackHandler(enabled = true) { showInsights = false }
         ScreenTimeInsightsScreen(
@@ -186,7 +209,7 @@ fun DopamineDietScreenTimeDestination(
                         Text("Today", color = TimeMuted, style = MaterialTheme.typography.labelLarge)
                         Text(formatScreenDuration(todayTotal), color = TimeText, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                         Text(
-                            if (todayApps.isEmpty()) "No app usage recorded today" else "${todayApps.size} apps with recorded usage",
+                            if (visibleTodayApps.isEmpty()) "No app usage recorded today" else "${visibleTodayApps.size} apps with recorded usage",
                             color = TimeMuted,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -210,8 +233,8 @@ fun DopamineDietScreenTimeDestination(
                 }
             }
         } else {
-            items(todayApps.sortedByDescending { it.totalScreenTime }.take(5).size) { index ->
-                val app = todayApps.sortedByDescending { it.totalScreenTime }[index]
+            items(visibleTodayApps.sortedByDescending { it.totalScreenTime }.take(5).size) { index ->
+                val app = visibleTodayApps.sortedByDescending { it.totalScreenTime }[index]
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     AndroidView(
                         modifier = Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)),
