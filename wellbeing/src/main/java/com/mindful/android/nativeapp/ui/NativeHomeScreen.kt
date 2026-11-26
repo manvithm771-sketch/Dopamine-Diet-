@@ -442,43 +442,6 @@ private fun StatisticsContent(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text("Usage", style = MaterialTheme.typography.titleLarge)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(onClick = { onWeekOffsetChange(weekOffset - 1) }) {
-                    Text("Previous week")
-                }
-                Text(
-                    when (weekOffset) {
-                        0 -> "This week"
-                        -1 -> "Last week"
-                        else -> "${-weekOffset} weeks ago"
-                    },
-                    fontWeight = FontWeight.Medium
-                )
-                TextButton(
-                    onClick = { onWeekOffsetChange(weekOffset + 1) },
-                    enabled = weekOffset < 0
-                ) {
-                    Text("Next week")
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf(
-                    "screen" to "Screen time",
-                    "network" to "Network data",
-                    "alphabetic" to "A–Z"
-                ).forEach { (metric, label) ->
-                    TextButton(onClick = { selectedMetric = metric }) {
-                        Text(if (selectedMetric == metric) "✓ $label" else label)
-                    }
-                }
-            }
-        }
-        item {
             Text("Weekly screen time · last 52 weeks", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Each bar represents one Monday–Sunday week.",
@@ -530,6 +493,40 @@ private fun StatisticsContent(
         }
         item {
             Text("Daily breakdown · selected week", style = MaterialTheme.typography.titleLarge)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = { onWeekOffsetChange(weekOffset - 1) }) {
+                    Text("Previous week")
+                }
+                Text(
+                    when (weekOffset) {
+                        0 -> "This week"
+                        -1 -> "Last week"
+                        else -> "${-weekOffset} weeks ago"
+                    },
+                    fontWeight = FontWeight.Medium
+                )
+                TextButton(
+                    onClick = { onWeekOffsetChange(weekOffset + 1) },
+                    enabled = weekOffset < 0
+                ) {
+                    Text("Next week")
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(
+                    "screen" to "Screen time",
+                    "network" to "Network data",
+                    "alphabetic" to "A–Z"
+                ).forEach { (metric, label) ->
+                    TextButton(onClick = { selectedMetric = metric }) {
+                        Text(if (selectedMetric == metric) "✓ $label" else label)
+                    }
+                }
+            }
         }
         if (dailyUsage.isEmpty()) {
             item { InfoCard("No daily records", "Daily usage for the selected week will appear when records are available.") }
