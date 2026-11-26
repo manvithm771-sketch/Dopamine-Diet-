@@ -188,7 +188,7 @@ fun NativeHomeScreen(
             topBar = {
                 if (selectedTab != NativeTab.DASHBOARD) {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-                        if (!showInternalNavigation && onStandaloneBack != null) {
+                        if (!showInternalNavigation && onStandaloneBack != null && !startOnWebsiteBlock) {
                             TextButton(onClick = onStandaloneBack) { Text("Back to Settings") }
                         }
                         Text(
@@ -1342,7 +1342,8 @@ private fun WebsiteBlockContent(
     wellbeing: NativeWellbeingEntity?,
     onSaveWellbeing: (NativeWellbeingEntity) -> Unit
 ) {
-    var editorVisible by remember { mutableStateOf(false) }
+    var websiteInput by remember { mutableStateOf("") }
+    var websiteError by remember { mutableStateOf<String?>(null) }
     val blockedSites = jsonItems(wellbeing?.blockedWebsitesJson ?: "[]")
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -1350,46 +1351,102 @@ private fun WebsiteBlockContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Website blocking", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-            Text(
-                "Manage websites that the accessibility service blocks across supported browsers.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Text("Website name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            OutlinedTextField(
+                value = websiteInput,
+                onValueChange = {
+                    websiteInput = it.take(253)
+                    websiteError = null
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Enter website name or domain") },
+                placeholder = { Text("example.com") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                isError = websiteError != null,
+                supportingText = websiteError?.let { error -> ({ Text(error) }) }
             )
+            TextButton(
+                onClick = {
+                    val host = normalizeBlockedWebsiteHost(websiteInput)
+                    when {
+                        host == null -> websiteError = "Enter a valid website domain, such as example.com."
+                        blockedSites.any { normalizeBlockedWebsiteHost(it) == host } ->
+                            websiteError = "This website is already blocked."
+                        else -> {
+                            val current = wellbeing ?: NativeWellbeingEntity()
+                            val updatedSites = (blockedSites.mapNotNull(::normalizeBlockedWebsiteHost) + host).distinct()
+                            onSaveWellbeing(
+                                current.copy(
+                                    blockedWebsitesJson = JSONArray(updatedSites).toString()
+                                )
+                            )
+                            websiteInput = ""
+                            websiteError = null
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = websiteInput.isNotBlank()
+            ) {
+                Text("Block website")
+            }
+            if (websiteError != null) {
+                Text(websiteError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
         }
         item {
-            InfoCard(
-                title = if (blockedSites.isEmpty()) "No blocked websites" else "${blockedSites.size} blocked websites",
-                body = if (blockedSites.isEmpty()) {
-                    "Add website domains to your block list."
-                } else {
-                    blockedSites.joinToString("\n")
-                }
+            Text(
+                if (blockedSites.isEmpty()) "Blocked websites" else "Blocked websites (\${blockedSites.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
             )
+        }
+        if (blockedSites.isEmpty()) {
+            item { InfoCard("No blocked websites", "Add a website above to block it in supported browsers.") }
+        } else {
+            items(blockedSites) { site ->
+                Card(shape = RoundedCornerShape(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(site, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                        TextButton(onClick = {
+                            val current = wellbeing ?: NativeWellbeingEntity()
+                            val updatedSites = blockedSites.filterNot { it == site }
+                            onSaveWellbeing(current.copy(blockedWebsitesJson = JSONArray(updatedSites).toString()))
+                        }) { Text("Unblock") }
+                    }
+                }
+            }
         }
         item {
             InfoCard(
                 title = if (wellbeing?.blockNsfwSites == true) "Adult-site blocking is on" else "Adult-site blocking is off",
-                body = "Adult-site blocking uses the saved adult-site list."
+                body = "Adult-site blocking uses the separately saved adult-site list."
             )
         }
-        item {
-            TextButton(onClick = { editorVisible = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Edit website blocking")
-            }
-        }
-    }
-    if (editorVisible) {
-        WellbeingEditorDialog(
-            initial = wellbeing,
-            onDismiss = { editorVisible = false },
-            onSave = { updated ->
-                onSaveWellbeing(updated)
-                editorVisible = false
-            }
-        )
     }
 }
+
+private fun normalizeBlockedWebsiteHost(input: String): String? = runCatching {
+    val raw = input.trim().trimEnd('.')
+    if (raw.isBlank() || raw.any { it.isWhitespace() }) return null
+    val withScheme = if (raw.contains("://")) raw else "https://$raw"
+    val uri = java.net.URI(withScheme)
+    var host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return null
+    host = host.removePrefix("www.").removePrefix("mobile.").removePrefix("m.")
+    if (host.length !in 3..253 || !host.contains('.')) return null
+    val labels = host.split('.')
+    if (labels.any { label ->
+            label.isBlank() || label.length > 63 ||
+                !label.first().isLetterOrDigit() || !label.last().isLetterOrDigit() ||
+                label.any { !it.isLetterOrDigit() && it != '-' }
+        }
+    ) return null
+    host
+}.getOrNull()
 
 private fun PlatformFeatures.displayLabel(): String = when (this) {
     PlatformFeatures.INSTAGRAM_REELS -> "Instagram Reels"
