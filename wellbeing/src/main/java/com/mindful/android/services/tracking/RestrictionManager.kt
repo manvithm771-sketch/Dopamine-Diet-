@@ -9,6 +9,7 @@ import com.mindful.android.helpers.usages.ScreenUsageHelper
 import com.mindful.android.models.AppRestriction
 import com.mindful.android.models.RestrictionGroup
 import com.mindful.android.models.RestrictionState
+import java.util.Calendar
 
 class RestrictionManager(
     private val context: Context,
@@ -19,6 +20,11 @@ class RestrictionManager(
     },
 ) {
     private val TAG = "Mindful.RestrictionManager"
+
+    companion object {
+        private const val LAUNCH_COUNT_DAY_KEY = "local_day"
+        private const val LAUNCH_COUNT_PREFIX = "count:"
+    }
 
     val isIdle: Boolean
         get() = focusedApps.isEmpty()
@@ -35,6 +41,12 @@ class RestrictionManager(
     //  Cache
     private val appsLaunchCount = HashMap<String, Int>(0)
     val getAppsLaunchCount: HashMap<String, Int> get() = appsLaunchCount
+    private val launchCountPrefs = context.getSharedPreferences("app_blocking_launch_counts", Context.MODE_PRIVATE)
+    private var launchCountDayKey: String = ""
+
+    init {
+        restoreLaunchCountsForToday()
+    }
 
     private val alreadyRestrictedApps = HashMap<String, RestrictionState>(0)
     private val alreadyRestrictedGroups = HashMap<Int, RestrictionState>(0)
@@ -43,6 +55,40 @@ class RestrictionManager(
         alreadyRestrictedApps.clear()
         alreadyRestrictedGroups.clear()
         appsLaunchCount.clear()
+        launchCountDayKey = currentLocalDayKey()
+        launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, launchCountDayKey).apply()
+    }
+
+    private fun currentLocalDayKey(): String {
+        val calendar = Calendar.getInstance()
+        return "${calendar.get(Calendar.YEAR)}-${calendar.get(Calendar.DAY_OF_YEAR)}"
+    }
+
+    private fun restoreLaunchCountsForToday() {
+        val today = currentLocalDayKey()
+        launchCountDayKey = today
+        if (launchCountPrefs.getString(LAUNCH_COUNT_DAY_KEY, null) != today) {
+            launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).apply()
+            return
+        }
+
+        launchCountPrefs.all.forEach { (key, value) ->
+            if (key.startsWith(LAUNCH_COUNT_PREFIX)) {
+                val packageName = key.removePrefix(LAUNCH_COUNT_PREFIX)
+                val count = value as? Int
+                if (packageName.isNotBlank() && count != null && count > 0) {
+                    appsLaunchCount[packageName] = count
+                }
+            }
+        }
+    }
+
+    private fun ensureLaunchCountsForToday() {
+        val today = currentLocalDayKey()
+        if (today == launchCountDayKey) return
+        appsLaunchCount.clear()
+        launchCountDayKey = today
+        launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).apply()
     }
 
     fun updateRestrictions(
@@ -90,13 +136,18 @@ class RestrictionManager(
         val restriction = appsRestrictions[packageName] ?: return null
 
         if (countLaunch) {
+            ensureLaunchCountsForToday()
             val launchCount = appsLaunchCount.getOrDefault(packageName, 0) + 1
+            appsLaunchCount[packageName] = launchCount
+            launchCountPrefs.edit()
+                .putString(LAUNCH_COUNT_DAY_KEY, launchCountDayKey)
+                .putInt("$LAUNCH_COUNT_PREFIX$packageName", launchCount)
+                .apply()
             if (restriction.launchLimit > 0 && launchCount > restriction.launchLimit) {
                 return RestrictionState(type = RestrictionType.LAUNCH_COUNT).also {
                     alreadyRestrictedApps[packageName] = it
                 }
             }
-            appsLaunchCount[packageName] = launchCount
         }
 
         val futureStates: MutableSet<RestrictionState> = mutableSetOf()
