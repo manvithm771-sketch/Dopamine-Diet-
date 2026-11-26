@@ -29,11 +29,12 @@ class MindfulTrackerService : Service() {
 
     override fun onCreate() {
         overlayManager = OverlayManager(this)
-        reminderManager = ReminderManager(overlayManager, ::onNewAppLaunch)
+        reminderManager = ReminderManager(overlayManager, ::onRestrictionTimerExpired)
         restrictionManager = RestrictionManager(this, ::stopIfNoUsage)
         launchTrackingManager = LaunchTrackingManager(
             context = this,
             onNewAppLaunched = ::onNewAppLaunch,
+            onCurrentAppRechecked = ::onCurrentAppRechecked,
             dismissOverlay = { overlayManager.dismissSheetOverlay() },
             cancelReminders = { reminderManager.cancelReminders() },
         )
@@ -78,24 +79,38 @@ class MindfulTrackerService : Service() {
 
     @WorkerThread
     private fun onNewAppLaunch(packageName: String) {
+        processAppRestriction(packageName, countLaunch = true)
+    }
+
+    @WorkerThread
+    private fun onCurrentAppRechecked(packageName: String) {
+        processAppRestriction(packageName, countLaunch = false)
+    }
+
+    @WorkerThread
+    private fun onRestrictionTimerExpired(packageName: String) {
+        processAppRestriction(packageName, countLaunch = false)
+    }
+
+    private fun processAppRestriction(packageName: String, countLaunch: Boolean) {
         try {
             reminderManager.cancelReminders()
             overlayManager.dismissSheetOverlay()
 
-            /// check current restrictions
-            val currentOrFutureState = restrictionManager.isAppRestricted(packageName)
-            Log.d(TAG, "onNewAppLaunch: $packageName's evaluated state => $currentOrFutureState")
+            val currentOrFutureState = if (countLaunch) {
+                restrictionManager.isAppRestricted(packageName)
+            } else {
+                restrictionManager.recheckAppRestriction(packageName)
+            }
+            Log.d(TAG, "processAppRestriction: $packageName evaluated (countLaunch=$countLaunch) => $currentOrFutureState")
 
             currentOrFutureState?.let {
-                /// Already restricted
                 if (it.timeLeftMillis <= 0L) {
                     overlayManager.showSheetOverlay(
                         packageName = packageName,
                         restrictionState = it,
                     )
-                }
-                /// Under limit but will be exhausted in some time
-                else {
+                } else {
                     reminderManager.scheduleReminders(
                         packageName = packageName,
                         state = it,
@@ -104,7 +119,7 @@ class MindfulTrackerService : Service() {
             }
         } catch (e: Exception) {
             SharedPrefsHelper.insertCrashLogToPrefs(this, e)
-            Log.e(TAG, "onNewAppLaunch: Failed to process new app launch event", e)
+            Log.e(TAG, "processAppRestriction: Failed to process app restriction for $packageName", e)
         }
     }
 
