@@ -666,7 +666,7 @@ open class MainActivity : ComponentActivity() {
         if (!hasUsageAccess()) return
         val preferences = getSharedPreferences("native_usage_history", MODE_PRIVATE)
         val now = System.currentTimeMillis()
-        val lastRefresh = preferences.getLong("last_52_week_refresh", 0L)
+        val lastRefresh = preferences.getLong("last_52_week_refresh_v2", 0L)
         if (now - lastRefresh < 24L * 60L * 60L * 1_000L) return
 
         try {
@@ -675,7 +675,7 @@ open class MainActivity : ComponentActivity() {
                 database.nativeUsageDao()
             ).refreshHistory(52)) {
                 is NativeUsageRefreshResult.Updated -> {
-                    preferences.edit().putLong("last_52_week_refresh", now).apply()
+                    preferences.edit().putLong("last_52_week_refresh_v2", now).apply()
                     android.util.Log.i(
                         "Mindful",
                         "52-week usage history refreshed: ${result.rowsWritten} records"
