@@ -14,7 +14,7 @@
     <string name="toast_blocked_content">Content blocked! going back</string>
     <string name="toast_redirecting">Filtering search results</string>
     <string name="toast_dnd_utilized_by_feature" comment="Placeholder is the name of feature like Focus mode, Bedtime or more" formatted="true">%s is currently using DND mode.</string>
-    <string name="service_running_notification_title">Mindful is running</string>
+    <string name="service_running_notification_title">Dopamine Diet is running</string>
     <string name="shortcut_focus_mode_label">Focus mode</string>
     <string name="shortcut_focus_mode_description">Quickly start a focus session with custom profiles.</string>
     <string name="focus_quick_tile_status_active">Active</string>
@@ -23,10 +23,10 @@
     <string name="widget_mobile_data_label">Mobile</string>
     <string name="widget_wifi_data_label">Wifi</string>
     <string name="widget_aggregated_usage_label">Aggregated usage</string>
-    <string name="internet_blocker_running_notification_info">Mindful is now managing internet access to help you stay focused.</string>
-    <string name="app_blocker_running_notification_info">Mindful is now tracking app usage to help you stay focused and manage your digital habits.</string>
+    <string name="internet_blocker_running_notification_info">Dopamine Diet is managing internet access according to your focus settings.</string>
+    <string name="app_blocker_running_notification_info">Dopamine Diet is tracking app usage to support your digital wellbeing settings.</string>
     <string name="overlay_permission_denied_notification_title">Permission denied</string>
-    <string name="overlay_permission_denied_notification_info">Please grant display overlay permission to Mindful by clicking on the notification. On the next screen, find Mindful in the list of apps and click on allow.</string>
+    <string name="overlay_permission_denied_notification_info">Please grant display-over-other-apps permission to Dopamine Diet. Find Dopamine Diet in the Android settings list and allow it.</string>
     <string name="app_paused_reason_focus_session">It\'s focus time! This app is paused to help you stay on track and make the most of your session.</string>
     <string name="app_paused_reason_bedtime">It\'s bedtime! This app is paused for the night to help you unwind and prepare for a peaceful sleep.</string>
     <string name="app_paused_reason_launch_count_out">You\'ve reached the maximum number of launches for this app today. It\'s time to step away and refocus on your priorities.</string>
