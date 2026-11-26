@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit
 class LaunchTrackingManager(
     private val context: Context,
     private val onNewAppLaunched: (packageName: String) -> Unit,
+    private val onCurrentAppRechecked: (packageName: String) -> Unit,
     private val dismissOverlay: () -> Unit,
     private val cancelReminders: () -> Unit,
 ) {
@@ -81,7 +82,7 @@ class LaunchTrackingManager(
         }
 
         Log.d(TAG, "onDeviceUnlocked: Usage tracking started (isManual=$isManualTrackingOn)")
-        executorService.submit { invokeNewAppLaunched(lastLaunchedApp) }
+        executorService.submit { recheckCurrentApp(lastLaunchedApp) }
     }
 
     @WorkerThread
@@ -149,7 +150,12 @@ class LaunchTrackingManager(
         onNewAppLaunched.invoke(packageName)
     }
 
-    fun reInvokeLastLaunchEvent() = invokeNewAppLaunched(lastLaunchedApp)
+    fun reInvokeLastLaunchEvent() = recheckCurrentApp(lastLaunchedApp)
+
+    private fun recheckCurrentApp(packageName: String) {
+        if (isTrackingPaused || packageName.isEmpty()) return
+        onCurrentAppRechecked.invoke(packageName)
+    }
 
     /**
      * Pauses or resumes app launch tracking.
@@ -158,7 +164,7 @@ class LaunchTrackingManager(
      */
     fun pauseResumeTracking(shouldPause: Boolean) {
         isTrackingPaused = shouldPause
-        if (!shouldPause) invokeNewAppLaunched(lastLaunchedApp)
+        if (!shouldPause) recheckCurrentApp(lastLaunchedApp)
     }
 
     fun dispose() {
