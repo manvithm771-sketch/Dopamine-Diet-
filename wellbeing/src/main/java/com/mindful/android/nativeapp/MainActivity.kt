@@ -300,8 +300,32 @@ open class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 database.nativeRestrictionDao().saveRestriction(rule)
-                Toast.makeText(this@MainActivity, "Restriction rule saved.", Toast.LENGTH_SHORT).show()
-                syncSavedRestrictions()
+                when {
+                    !hasUsageAccess() -> {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Rule saved. Grant Usage Access to activate app blocking.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                    }
+                    !Settings.canDrawOverlays(this@MainActivity) -> {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Rule saved. Allow display over other apps to activate blocking.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        requestOverlayAccess()
+                    }
+                    else -> {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "App blocking rule saved and activated.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        syncSavedRestrictions()
+                    }
+                }
             } catch (error: Exception) {
                 Toast.makeText(
                     this@MainActivity,
