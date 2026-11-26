@@ -13,6 +13,9 @@ class ReminderManager(
 ) {
     private val TAG = "Mindful.ReminderManager"
     private val triggerInterval = 10L
+    // Recheck the active app limit every second so the full-screen restriction
+    // overlay is presented immediately when the configured limit expires.
+    private val expiryCheckIntervalMs = 1_000L
     private val reminderTriggers: HashSet<Int> = HashSet(0)
     private var activeTimer: PreciseCountDownExecutor? = null
 
@@ -45,7 +48,7 @@ class ReminderManager(
         // Set timer for expiration
         activeTimer = PreciseCountDownExecutor(
             duration = state.timeLeftMillis,
-            interval = 60000L,
+            interval = expiryCheckIntervalMs,
             timeUnit = TimeUnit.MILLISECONDS,
             onTick = { elapsedMs ->
                 val elapsedMinutes = (elapsedMs / 60000L).toInt()
