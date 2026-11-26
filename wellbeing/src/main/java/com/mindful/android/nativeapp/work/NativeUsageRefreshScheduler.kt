@@ -35,7 +35,14 @@ internal object NativeUsageRefreshScheduler {
      * KEEP prevents duplicate work while a backfill is already running.
      */
     fun scheduleInitialRefresh(context: Context) {
-        WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
+        val appContext = context.applicationContext
+        val historyPrefs = appContext.getSharedPreferences(
+            "native_screen_time_history",
+            Context.MODE_PRIVATE
+        )
+        if (historyPrefs.getBoolean("backfill_complete", false)) return
+
+        WorkManager.getInstance(appContext).enqueueUniqueWork(
             INITIAL_REFRESH_WORK_NAME,
             ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<NativeUsageRefreshWorker>().build()
