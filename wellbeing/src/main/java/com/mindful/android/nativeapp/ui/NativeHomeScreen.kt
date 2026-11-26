@@ -1261,7 +1261,9 @@ private fun AppsContent(
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                             val rule = restrictionsByPackage[app.packageName]
-                            if (rule != null) {
+                            val hasActiveRule = rule != null &&
+                                (rule.timerSec > 0L || rule.launchLimit > 0L || rule.associatedGroupId != null)
+                            if (hasActiveRule) {
                                 Text(
                                     "Limited",
                                     style = MaterialTheme.typography.labelSmall,
@@ -1841,17 +1843,22 @@ private fun AppDetailContent(
                     }
                     Text("Restriction group: $groupName")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = {
-                            onSaveRestriction(
-                                NativeAppRestrictionEntity(
-                                    appPackage = packageName,
-                                    timerSec = timerText.toLongOrNull() ?: 0L,
-                                    launchLimit = launchLimitText.toLongOrNull() ?: 0L,
-                                    associatedGroupId = restriction?.associatedGroupId,
-                                    reminderType = reminderType
+                        TextButton(
+                            enabled = (timerText.toLongOrNull() ?: 0L) > 0L ||
+                                (launchLimitText.toLongOrNull() ?: 0L) > 0L ||
+                                restriction?.associatedGroupId != null,
+                            onClick = {
+                                onSaveRestriction(
+                                    NativeAppRestrictionEntity(
+                                        appPackage = packageName,
+                                        timerSec = timerText.toLongOrNull() ?: 0L,
+                                        launchLimit = launchLimitText.toLongOrNull() ?: 0L,
+                                        associatedGroupId = restriction?.associatedGroupId,
+                                        reminderType = reminderType
+                                    )
                                 )
-                            )
-                        }) { Text("Save rule") }
+                            }
+                        ) { Text("Save rule") }
                         if (restriction != null) {
                             TextButton(onClick = { onDeleteRestriction(packageName) }) {
                                 Text("Remove rule")
