@@ -128,7 +128,7 @@ fun DopamineDietSettingsDestination(
                     SettingsRow("♧", "Notifications", "Android notification settings", Color(0xFFF06B85)) {
                         context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
                     }
-                    SettingsRow("◐", "Appearance", "Dark", Color(0xFFE6A34A)) { }
+                    SettingsRow("◐", "Appearance", "Dark", Color(0xFFE6A34A), null)
                     SettingsRow("ⓘ", "Accessibility", "Reels and Shorts tracking service", Color(0xFF38A8F5)) {
                         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                     }
@@ -153,9 +153,9 @@ fun DopamineDietSettingsDestination(
 }
 
 @Composable
-private fun SettingsRow(symbol: String, title: String, subtitle: String, tint: Color, onClick: () -> Unit) {
+private fun SettingsRow(symbol: String, title: String, subtitle: String, tint: Color, onClick: (() -> Unit)?) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).clickable(onClick = onClick).padding(vertical = 10.dp, horizontal = 2.dp),
+        (if (onClick != null) Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).clickable(onClick = onClick) else Modifier.fillMaxWidth()).padding(vertical = 10.dp, horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(tint.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
