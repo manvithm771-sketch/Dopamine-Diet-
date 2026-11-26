@@ -168,6 +168,56 @@ internal class NativeUsageRepository(
         NativeUsageRefreshResult.Updated(rowsWritten)
     }
 
+
+    /**
+     * Backfills one historical day from Android's persisted daily UsageStats.
+     * Existing mobile and Wi-Fi values are preserved.
+     */
+    suspend fun refreshHistoricalScreenTimeDay(
+        dayStartEpochMillis: Long,
+        dayEndEpochMillis: Long
+    ): NativeUsageRefreshResult = withContext(Dispatchers.IO) {
+        require(dayStartEpochMillis >= 0L) { "Day start must be a valid epoch timestamp." }
+        require(dayEndEpochMillis > dayStartEpochMillis) { "Usage interval must have a positive duration." }
+        if (!hasUsageAccess()) return@withContext NativeUsageRefreshResult.UsageAccessRequired
+
+        val manager = appContext.getSystemService(
+            Context.USAGE_STATS_SERVICE
+        ) as UsageStatsManager
+        val screenUsage = ScreenUsageHelper.fetchAggregatedUsageForInterval(
+            manager,
+            dayStartEpochMillis,
+            dayEndEpochMillis,
+            strict = true
+        )
+
+        // Empty can mean no recorded use or that Android no longer retains the day.
+        // Do not erase rows already collected by the app in either case.
+        if (screenUsage.isEmpty()) {
+            return@withContext NativeUsageRefreshResult.Updated(0)
+        }
+
+        val existing = usageDao.getForDay(dayStartEpochMillis)
+        val existingByPackage = existing.associateBy { it.packageName }
+        val usageRows = screenUsage.map { (packageName, seconds) ->
+            val previous = existingByPackage[packageName]
+            NativeAppUsageEntity(
+                packageName = packageName,
+                dateEpochMillis = dayStartEpochMillis,
+                screenTime = seconds,
+                mobileData = previous?.mobileData ?: 0L,
+                wifiData = previous?.wifiData ?: 0L
+            )
+        }
+        val preservedRows = existing
+            .filter { it.packageName !in screenUsage }
+            .map { it.copy(screenTime = 0L) }
+
+        val rows = usageRows + preservedRows
+        usageDao.replaceDay(dayStartEpochMillis, rows)
+        NativeUsageRefreshResult.Updated(usageRows.size)
+    }
+
     @Suppress("DEPRECATION")
     private fun hasUsageAccess(): Boolean {
         val appOps = appContext.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
