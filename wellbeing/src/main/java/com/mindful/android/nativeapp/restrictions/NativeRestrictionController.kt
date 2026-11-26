@@ -129,10 +129,14 @@ internal class NativeRestrictionController(context: Context) {
             return true
         }
         if (connection.isActive) {
-            connection.service?.getRestrictionManager?.updateRestrictions(rules.apps, rules.groups)
+            connection.service?.let { service ->
+                service.getRestrictionManager.updateRestrictions(rules.apps, rules.groups)
+                service.getLaunchTrackingManager.reInvokeLastLaunchEvent()
+            }
         } else {
             connection.setOnConnectedCallback { service ->
                 service.getRestrictionManager.updateRestrictions(rules.apps, rules.groups)
+                service.getLaunchTrackingManager.reInvokeLastLaunchEvent()
             }
             connection.startAndBind()
         }
