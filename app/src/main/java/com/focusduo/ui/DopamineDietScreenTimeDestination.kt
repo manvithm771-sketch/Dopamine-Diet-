@@ -5,7 +5,6 @@ import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +53,8 @@ import com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEnt
 import com.mindful.android.nativeapp.data.local.entity.NativeWellbeingEntity
 import com.mindful.android.nativeapp.ui.NativeHomeScreen
 import java.util.Calendar
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 private val TimeBg = Color(0xFF08090E)
 private val TimeCard = Color(0xFF171923)
@@ -74,6 +75,7 @@ fun DopamineDietScreenTimeDestination(
     val database = remember(context) { NativeDatabaseProvider.get(context) }
     var openedBlockingTool by remember { mutableStateOf<String?>(null) }
     var showInsights by remember { mutableStateOf(false) }
+    var selectedWeekIndex by remember { mutableStateOf(51) }
 
     if (openedBlockingTool != null) {
         NativeHomeScreen(
@@ -142,7 +144,17 @@ fun DopamineDietScreenTimeDestination(
         }
         totals
     }
-    val maxWeek = weeklyTotals.maxOrNull()?.coerceAtLeast(1L) ?: 1L
+    val selectedWeekStart = yearRange.third[selectedWeekIndex.coerceIn(0, 51)]
+    val selectedWeekEnd = (Calendar.getInstance().apply { timeInMillis = selectedWeekStart }).apply { add(Calendar.DAY_OF_YEAR, 7) }.timeInMillis
+    val selectedWeekDailyTotals = remember(daily, selectedWeekStart) {
+        val totals = MutableList(7) { 0L }
+        daily.filter { it.dateEpochMillis >= selectedWeekStart && it.dateEpochMillis < selectedWeekEnd }.forEach { day ->
+            val dayCalendar = Calendar.getInstance().apply { timeInMillis = day.dateEpochMillis }
+            val dayIndex = (dayCalendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
+            totals[dayIndex] += day.totalScreenTime
+        }
+        totals
+    }
     val maxApp = usage.maxOfOrNull { it.totalScreenTime }?.coerceAtLeast(1L) ?: 1L
     val appRows = usage.sortedByDescending { it.totalScreenTime }
     if (showInsights) {
@@ -184,7 +196,15 @@ fun DopamineDietScreenTimeDestination(
             }
         }
         item {
-            WeekdayScreenTimeChart(currentWeekDailyTotals)
+            WeekdayScreenTimeChart(
+                dayTotals = selectedWeekDailyTotals,
+                weekNumber = selectedWeekIndex + 1,
+                weekStartMillis = selectedWeekStart,
+                canGoPrevious = selectedWeekIndex > 0,
+                canGoNext = selectedWeekIndex < 51,
+                onPrevious = { if (selectedWeekIndex > 0) selectedWeekIndex-- },
+                onNext = { if (selectedWeekIndex < 51) selectedWeekIndex++ }
+            )
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -315,14 +335,41 @@ private fun InsightSummaryCard(label: String, value: String) {
 }
 
 @Composable
-private fun WeekdayScreenTimeChart(dayTotals: List<Long>) {
+private fun WeekdayScreenTimeChart(
+    dayTotals: List<Long>,
+    weekNumber: Int,
+    weekStartMillis: Long,
+    canGoPrevious: Boolean,
+    canGoNext: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit
+) {
     val labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     val axis = listOf("15h", "12h", "8h", "4h", "0s")
     val maxSeconds = 15L * 60L * 60L
+    val weekEndMillis = (Calendar.getInstance().apply { timeInMillis = weekStartMillis }).apply { add(Calendar.DAY_OF_YEAR, 6) }.timeInMillis
+    val dateFormat = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Weekly screen time", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text("Week $weekNumber of 52", color = TimeMuted, style = MaterialTheme.typography.labelMedium)
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                dateFormat.format(java.util.Date(weekStartMillis)) + " – " + dateFormat.format(java.util.Date(weekEndMillis)),
+                color = TimeMuted,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("‹", color = if (canGoPrevious) TimeText else TimeMuted.copy(alpha = 0.3f), style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.clip(CircleShape).clickable(enabled = canGoPrevious, onClick = onPrevious).padding(horizontal = 8.dp))
+                Text("›", color = if (canGoNext) TimeText else TimeMuted.copy(alpha = 0.3f), style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.clip(CircleShape).clickable(enabled = canGoNext, onClick = onNext).padding(horizontal = 8.dp))
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth().height(244.dp),
             verticalAlignment = Alignment.CenterVertically
