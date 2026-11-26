@@ -49,7 +49,9 @@ class LaunchTrackingManager(
 
     private var lastUsageQueryTimestamp = System.currentTimeMillis()
     private var lastLaunchedApp = ""
-    private var activeApps = mutableListOf<String>()
+    // Track activity instances, not just package names, so a stale pause/stop
+    // event from one activity cannot hide another active activity in the same app.
+    private val activeActivities = LinkedHashMap<String, String>()
 
     init {
         // Register receivers
@@ -119,25 +121,27 @@ class LaunchTrackingManager(
             while (it.hasNextEvent()) {
                 it.getNextEvent(currentEvent)
 
-                val packageName = currentEvent.packageName
+                val packageName = currentEvent.packageName ?: continue
+                val activityKey = "$packageName|${currentEvent.className.orEmpty()}"
                 when (currentEvent.eventType) {
-                    UsageEvents.Event.ACTIVITY_RESUMED,
-                        -> activeApps.add(packageName)
+                    UsageEvents.Event.ACTIVITY_RESUMED -> {
+                        activeActivities.remove(activityKey)
+                        activeActivities[activityKey] = packageName
+                    }
 
                     UsageEvents.Event.ACTIVITY_PAUSED,
-                    UsageEvents.Event.ACTIVITY_STOPPED,
-                        -> activeApps.remove(packageName)
+                    UsageEvents.Event.ACTIVITY_STOPPED -> activeActivities.remove(activityKey)
 
                     else -> {}
                 }
             }
         }
 
-        activeApps.firstOrNull()?.let {
+        activeActivities.values.lastOrNull()?.let {
             if (lastLaunchedApp == it) return
             invokeNewAppLaunched(it)
         }
-        Log.d(TAG, "findLaunchedApp: Opened app:$lastLaunchedApp Active apps: $activeApps ")
+        Log.d(TAG, "findLaunchedApp: Opened app:$lastLaunchedApp Active activities: $activeActivities ")
     }
 
     /**
