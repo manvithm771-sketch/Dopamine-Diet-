@@ -100,7 +100,10 @@ fun NativeHomeScreen(
     onDeleteRestrictionGroup: (Long) -> Unit = {},
     onSaveWellbeing: (NativeWellbeingEntity) -> Unit = {},
     startOnStatistics: Boolean = false,
+    startOnFocus: Boolean = false,
+    startOnApps: Boolean = false,
     showInternalNavigation: Boolean = true,
+    onStandaloneBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var weekOffset by remember { mutableStateOf(0) }
@@ -160,7 +163,16 @@ fun NativeHomeScreen(
 
     val context = LocalContext.current
     val tabs = NativeTab.values().filterNot { it == NativeTab.FOCUS || it == NativeTab.APPS }
-    var selectedTab by remember { mutableStateOf(if (startOnStatistics) NativeTab.STATISTICS else NativeTab.DASHBOARD) }
+    var selectedTab by remember {
+        mutableStateOf(
+            when {
+                startOnStatistics -> NativeTab.STATISTICS
+                startOnFocus -> NativeTab.FOCUS
+                startOnApps -> NativeTab.APPS
+                else -> NativeTab.DASHBOARD
+            }
+        )
+    }
     var selectedApp by remember { mutableStateOf<String?>(null) }
     val selectedAppUsage by dao.observeAppUsage(
         selectedApp ?: "",
@@ -174,6 +186,9 @@ fun NativeHomeScreen(
             topBar = {
                 if (selectedTab != NativeTab.DASHBOARD) {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                        if (!showInternalNavigation && onStandaloneBack != null) {
+                            TextButton(onClick = onStandaloneBack) { Text("Back to Settings") }
+                        }
                         Text(
                             text = when (selectedTab) {
                                 NativeTab.STATISTICS -> "Your statistics"
