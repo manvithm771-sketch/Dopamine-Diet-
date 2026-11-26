@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   build:
@@ -49,6 +50,32 @@ jobs:
           fi
           echo "APK verified: $APK_PATH"
           ls -lh "$APK_PATH"
+
+      # Keep only the latest APK artifact for this repository.
+      # This does not touch artifacts belonging to other workflows or repositories.
+      - name: Remove previous Dopamine Diet APK artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifactName = "Dopamine-Diet-debug-apk";
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
+            );
+            const previous = artifacts.filter(
+              artifact => artifact.name === artifactName
+            );
+
+            for (const artifact of previous) {
+              core.info(`Deleting previous ${artifact.name} artifact #${artifact.id} (${artifact.size_in_bytes} bytes)`);
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id
+              });
+            }
+
+            core.info(`Removed ${previous.length} previous Dopamine Diet APK artifact(s).`);
 
       - name: Upload APK to workflow Artifacts
         uses: actions/upload-artifact@v4
