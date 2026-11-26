@@ -4,6 +4,7 @@ import com.mindful.android.R
 
 import android.content.Context
 import android.content.Intent
+import android.widget.ImageView
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.mindful.android.enums.PlatformFeatures
 import com.mindful.android.nativeapp.restrictions.protectedSystemPackageNames
 import com.mindful.android.nativeapp.data.local.NativeDashboardDao
@@ -1218,32 +1220,59 @@ private fun AppsContent(
                 InfoCard("No matching apps", "Try a different app name or package search.")
             }
         } else {
-            items(filteredInstalledApps, key = { it.packageName }) { app ->
-                val rule = restrictionsByPackage[app.packageName]
-                val groupName = groups.firstOrNull { it.id == rule?.associatedGroupId }?.groupName
-                Card(
-                    modifier = Modifier.clickable { onSelectApp(app.packageName) },
-                    shape = RoundedCornerShape(18.dp)
+            items(filteredInstalledApps.chunked(5)) { appRow ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Text(app.label, fontWeight = FontWeight.SemiBold)
-                        Text(app.packageName, style = MaterialTheme.typography.bodySmall)
-                        if (app.isImportantSystemApp) {
-                            Text(
-                                "Essential system app — restrictions disabled",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall
+                    appRow.forEach { app ->
+                        Column(
+                            modifier = Modifier.weight(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { onSelectApp(app.packageName) }
+                                .padding(vertical = 8.dp, horizontal = 2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            AndroidView(
+                                modifier = Modifier.size(48.dp),
+                                factory = { viewContext ->
+                                    ImageView(viewContext).apply {
+                                        scaleType = ImageView.ScaleType.FIT_CENTER
+                                        setPadding(2, 2, 2, 2)
+                                    }
+                                },
+                                update = { imageView ->
+                                    runCatching {
+                                        imageView.setImageDrawable(
+                                            context.packageManager.getApplicationIcon(app.packageName)
+                                        )
+                                    }.onFailure {
+                                        imageView.setImageDrawable(null)
+                                    }
+                                }
                             )
-                        } else if (rule == null) {
-                            Text("No restriction saved", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        } else {
-                            Text("Daily timer: ${rule.timerSec} seconds")
-                            Text("Launch limit: ${rule.launchLimit}")
-                            if (groupName != null) Text("Group: $groupName")
+                            Text(
+                                app.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                minLines = 2,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            val rule = restrictionsByPackage[app.packageName]
+                            if (rule != null) {
+                                Text(
+                                    "Limited",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
+                    }
+                    repeat(5 - appRow.size) {
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
