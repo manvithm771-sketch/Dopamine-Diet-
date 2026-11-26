@@ -23,14 +23,14 @@ class DopamineDietActivity : MindfulHostActivity() {
 
     @Composable
     override fun MainContent() {
-        val background = Color(0xFF09090D)
-        val surface = Color(0xFF17171F)
-        val violet = Color(0xFFB69AFF)
+        val background = Color(0xFF08090E)
+        val surface = Color(0xFF171923)
+        val violet = Color(0xFFAA83FF)
 
         MaterialTheme(
             colorScheme = darkColorScheme(
                 primary = violet,
-                secondary = Color(0xFFD3C2FF),
+                secondary = Color(0xFF4D9DFF),
                 background = background,
                 surface = surface,
                 onPrimary = Color(0xFF17121F),
