@@ -102,6 +102,7 @@ fun NativeHomeScreen(
     startOnStatistics: Boolean = false,
     startOnFocus: Boolean = false,
     startOnApps: Boolean = false,
+    startOnWebsiteBlock: Boolean = false,
     showInternalNavigation: Boolean = true,
     onStandaloneBack: (() -> Unit)? = null,
     forceDopamineDietTheme: Boolean = false,
@@ -169,7 +170,7 @@ fun NativeHomeScreen(
             when {
                 startOnStatistics -> NativeTab.STATISTICS
                 startOnFocus -> NativeTab.FOCUS
-                startOnApps -> NativeTab.APPS
+                startOnApps || startOnWebsiteBlock -> NativeTab.APPS
                 else -> NativeTab.DASHBOARD
             }
         )
@@ -266,14 +267,20 @@ fun NativeHomeScreen(
                     onSaveReflection = onSaveFocusReflection,
                     onBackToHome = { selectedTab = NativeTab.DASHBOARD }
                 )
-                NativeTab.APPS -> if (selectedApp == null) {
+                NativeTab.APPS -> if (startOnWebsiteBlock) {
+                    WebsiteBlockContent(
+                        modifier = Modifier.padding(padding),
+                        wellbeing = wellbeing,
+                        onSaveWellbeing = onSaveWellbeing
+                    )
+                } else if (selectedApp == null) {
                     AppsContent(
                         modifier = Modifier.padding(padding),
                         restrictions = restrictions,
                         groups = groups,
                         wellbeing = wellbeing,
                         onSelectApp = { selectedApp = it },
-                                                onSaveRestrictionGroup = onSaveRestrictionGroup,
+                        onSaveRestrictionGroup = onSaveRestrictionGroup,
                         onDeleteRestrictionGroup = onDeleteRestrictionGroup,
                         onSaveWellbeing = onSaveWellbeing
                     )
@@ -1324,6 +1331,61 @@ private fun AppsContent(
             onSave = { updated ->
                 onSaveWellbeing(updated)
                 wellbeingDialogVisible = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun WebsiteBlockContent(
+    modifier: Modifier,
+    wellbeing: NativeWellbeingEntity?,
+    onSaveWellbeing: (NativeWellbeingEntity) -> Unit
+) {
+    var editorVisible by remember { mutableStateOf(false) }
+    val blockedSites = jsonItems(wellbeing?.blockedWebsitesJson ?: "[]")
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Website blocking", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Manage websites that the accessibility service blocks across supported browsers.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        item {
+            InfoCard(
+                title = if (blockedSites.isEmpty()) "No blocked websites" else "${blockedSites.size} blocked websites",
+                body = if (blockedSites.isEmpty()) {
+                    "Add website domains to your block list."
+                } else {
+                    blockedSites.joinToString("\\n")
+                }
+            )
+        }
+        item {
+            InfoCard(
+                title = if (wellbeing?.blockNsfwSites == true) "Adult-site blocking is on" else "Adult-site blocking is off",
+                body = "Adult-site blocking uses the saved adult-site list."
+            )
+        }
+        item {
+            TextButton(onClick = { editorVisible = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("Edit website blocking")
+            }
+        }
+    }
+    if (editorVisible) {
+        WellbeingEditorDialog(
+            initial = wellbeing,
+            onDismiss = { editorVisible = false },
+            onSave = { updated ->
+                onSaveWellbeing(updated)
+                editorVisible = false
             }
         )
     }
