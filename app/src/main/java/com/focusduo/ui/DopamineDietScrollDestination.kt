@@ -7,6 +7,7 @@ import android.content.Intent
 import android.provider.Settings
 import android.text.format.DateFormat
 import android.widget.Toast
+import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -127,21 +129,22 @@ fun DopamineDietScrollDestination() {
             }
         }
         item {
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = ScrollCard)
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Row(Modifier.fillMaxWidth().padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(46.dp).clip(CircleShape).background(Color(0xFF282044)), contentAlignment = Alignment.Center) {
-                        Text("▥", color = ScrollViolet, style = MaterialTheme.typography.headlineSmall)
-                    }
-                    Column(Modifier.weight(1f).padding(start = 13.dp)) {
-                        Text("Reels watched", color = ScrollText, fontWeight = FontWeight.SemiBold)
-                        Text("Instagram Reels: ${stats.count}  •  YouTube Shorts: ${stats.shortsCount}", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Text(if (tracking == com.reeltracker.ui.Tracking.On) "LIVE" else "OFF", color = if (tracking == com.reeltracker.ui.Tracking.On) ScrollMint else ScrollMuted, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                }
+                PlatformCountRow(
+                    context = context,
+                    packageName = "com.instagram.android",
+                    label = "Instagram Reels",
+                    count = stats.count
+                )
+                PlatformCountRow(
+                    context = context,
+                    packageName = "com.google.android.youtube",
+                    label = "YouTube Shorts",
+                    count = stats.shortsCount
+                )
             }
         }
         if (tracking != com.reeltracker.ui.Tracking.On) {
@@ -168,6 +171,45 @@ fun DopamineDietScrollDestination() {
             }
         }
         item { lastEventAt?.let { Text("Last activity: ${java.text.DateFormat.getTimeInstance(if (is24h) java.text.DateFormat.SHORT else java.text.DateFormat.SHORT).format(java.util.Date(it))}", color = ScrollMuted, style = MaterialTheme.typography.bodySmall) } }
+    }
+}
+
+@Composable
+private fun PlatformCountRow(
+    context: Context,
+    packageName: String,
+    label: String,
+    count: Int
+) {
+    val iconAvailable = remember(packageName) {
+        try {
+            context.packageManager.getApplicationIcon(packageName)
+            true
+        } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (iconAvailable) {
+            AndroidView(
+                factory = { viewContext ->
+                    ImageView(viewContext).apply {
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                        setImageDrawable(viewContext.packageManager.getApplicationIcon(packageName))
+                    }
+                },
+                modifier = Modifier.size(34.dp)
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f).padding(start = if (iconAvailable) 13.dp else 0.dp)
+        ) {
+            Text(label, color = ScrollText, fontWeight = FontWeight.Medium)
+        }
+        Text(count.toString(), color = ScrollText, fontWeight = FontWeight.SemiBold)
     }
 }
 
