@@ -90,7 +90,7 @@ class RestrictionManager(
         alreadyRestrictedApps.clear()
         alreadyRestrictedGroups.clear()
         launchCountDayKey = today
-        launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).apply()
+        launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).commit()
     }
 
     fun updateRestrictions(
