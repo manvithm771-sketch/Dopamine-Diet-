@@ -176,9 +176,13 @@ class BrowserManager(
                 java.net.URI(if (raw.contains("://")) raw else "https://$raw")
             }.getOrNull() ?: return null
             var host = uri.host?.lowercase()?.trimEnd('.') ?: return null
-            if (host.startsWith("www.")) host = host.removePrefix("www.")
-            if (host.startsWith("mobile.")) host = host.removePrefix("mobile.")
-            if (host.startsWith("m.")) host = host.removePrefix("m.")
+            while (host.startsWith("www.") || host.startsWith("mobile.") || host.startsWith("m.")) {
+                host = when {
+                    host.startsWith("www.") -> host.removePrefix("www.")
+                    host.startsWith("mobile.") -> host.removePrefix("mobile.")
+                    else -> host.removePrefix("m.")
+                }
+            }
             return host.takeIf { it.isNotBlank() }
         }
 
