@@ -57,12 +57,12 @@ fun DopamineDietScrollDestination() {
     }
 
     val palette = Palette(
-        background = Color(0xFF09090D),
-        card = Color(0xFF17171F),
+        background = Color(0xFF08090E),
+        card = Color(0xFF171923),
         textPrimary = Color(0xFFF7F5FC),
-        textSecondary = Color(0xFFB8B3C5),
+        textSecondary = Color(0xFFB3B2C5),
         textMuted = Color(0xFF817B90),
-        accent = Color(0xFFB69AFF),
+        accent = Color(0xFFAA83FF),
         good = Color(0xFF75D6A0)
     )
     CompositionLocalProvider(LocalPalette provides palette) {
