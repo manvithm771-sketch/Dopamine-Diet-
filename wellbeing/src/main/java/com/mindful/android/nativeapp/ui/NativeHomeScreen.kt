@@ -296,7 +296,6 @@ fun NativeHomeScreen(
                         isImportantSystemApp = selectedApp in protectedSystemPackageNames(context),
                         restriction = restrictions.firstOrNull { it.appPackage == selectedApp },
                         groups = groups,
-                        usage = selectedAppUsage,
                         onBack = { selectedApp = null },
                         onSaveRestriction = onSaveAppRestriction,
                         onDeleteRestriction = onDeleteAppRestriction
@@ -1720,7 +1719,6 @@ private fun AppDetailContent(
     isImportantSystemApp: Boolean,
     restriction: NativeAppRestrictionEntity?,
     groups: List<NativeRestrictionGroupEntity>,
-    usage: List<NativeAppUsageEntity>,
     onBack: () -> Unit,
     onSaveRestriction: (NativeAppRestrictionEntity) -> Unit,
     onDeleteRestriction: (String) -> Unit
@@ -1749,9 +1747,41 @@ private fun AppDetailContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            TextButton(onClick = onBack) { Text("Back to apps") }
-            Text(nativeAppLabel(context, packageName), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(packageName, style = MaterialTheme.typography.bodySmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    "‹",
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier.clickable(onClick = onBack).padding(end = 4.dp)
+                )
+                AndroidView(
+                    modifier = Modifier.size(76.dp).clip(RoundedCornerShape(18.dp)),
+                    factory = { viewContext ->
+                        ImageView(viewContext).apply {
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            setPadding(3, 3, 3, 3)
+                        }
+                    },
+                    update = { image ->
+                        runCatching {
+                            image.setImageDrawable(context.packageManager.getApplicationIcon(packageName))
+                        }.onFailure {
+                            image.setImageDrawable(null)
+                        }
+                    }
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        nativeAppLabel(context, packageName),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(packageName, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
         if (isImportantSystemApp) {
             item {
@@ -1833,22 +1863,7 @@ private fun AppDetailContent(
             }
         }
         }
-        item {
-            Text("Usage for selected day", style = MaterialTheme.typography.titleMedium)
-        }
-        if (usage.isEmpty()) {
-            item { InfoCard("No usage records", "No usage entries for this app were found for the selected day.") }
-        } else {
-            items(usage, key = { it.dateEpochMillis }) { record ->
-                InfoCard(
-                    title = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
-                        .format(java.util.Date(record.dateEpochMillis)),
-                    body = "Screen time: ${formatDuration(record.screenTime)}\n" +
-                        "Mobile data: ${formatDataUsage(record.mobileData)}\n" +
-                        "Wi-Fi data: ${formatDataUsage(record.wifiData)}"
-                )
-            }
-        }
+
     }
 }
 
