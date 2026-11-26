@@ -158,6 +158,15 @@ fun NativeHomeScreen(
     ).collectAsState(initial = emptyList())
     val weeklyUsage by dao.observeDailyUsageRange(weekRange.first, weekRange.second)
         .collectAsState(initial = emptyList())
+    val yearRange = remember(weekRange.first, weekRange.second) {
+        val start = Calendar.getInstance().apply {
+            timeInMillis = weekRange.first
+            add(Calendar.DAY_OF_YEAR, -51 * 7)
+        }
+        start.timeInMillis to weekRange.second
+    }
+    val yearlyUsage by dao.observeDailyUsageRange(yearRange.first, yearRange.second)
+        .collectAsState(initial = emptyList())
     val focusMode by dao.observeFocusMode().collectAsState(initial = null)
     val focusProfiles by dao.observeFocusProfiles().collectAsState(initial = emptyList())
     val focusSessions by dao.observeFocusSessions(todayRange.first, todayRange.second)
@@ -239,6 +248,8 @@ fun NativeHomeScreen(
                     modifier = Modifier.padding(padding),
                     usage = selectedStatsUsage,
                     dailyUsage = weeklyUsage,
+                    yearlyDailyUsage = yearlyUsage,
+                    yearStartEpochMillis = yearRange.first,
                     weekStartEpochMillis = weekRange.first,
                     selectedDateEpochMillis = selectedStatsDayRange.first,
                     weekOffset = weekOffset,
@@ -350,6 +361,8 @@ private fun StatisticsContent(
     modifier: Modifier,
     usage: List<NativeAppUsageSummary>,
     dailyUsage: List<NativeDailyUsageSummary>,
+    yearlyDailyUsage: List<NativeDailyUsageSummary>,
+    yearStartEpochMillis: Long,
     weekStartEpochMillis: Long,
     selectedDateEpochMillis: Long,
     weekOffset: Int,
@@ -400,6 +413,24 @@ private fun StatisticsContent(
         }
     }
     val maxDailyUsage = weekDays.maxOfOrNull { dayMetric(it) }?.coerceAtLeast(1L) ?: 1L
+    val weeklyHistory = remember(yearlyDailyUsage, yearStartEpochMillis) {
+        val recordedDays = yearlyDailyUsage.associateBy { it.dateEpochMillis }
+        (0 until 52).map { weekIndex ->
+            val weekStart = Calendar.getInstance().apply {
+                timeInMillis = yearStartEpochMillis
+                add(Calendar.DAY_OF_YEAR, weekIndex * 7)
+            }.timeInMillis
+            val total = (0..6).sumOf { dayIndex ->
+                val dayStart = Calendar.getInstance().apply {
+                    timeInMillis = weekStart
+                    add(Calendar.DAY_OF_YEAR, dayIndex)
+                }.timeInMillis
+                recordedDays[dayStart]?.totalScreenTime ?: 0L
+            }
+            weekStart to total
+        }
+    }
+    val maxWeeklyScreenTime = weeklyHistory.maxOfOrNull { it.second }?.coerceAtLeast(1L) ?: 1L
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -443,8 +474,52 @@ private fun StatisticsContent(
                 }
             }
         }
+        item {
+            Text("Weekly screen time · last 52 weeks", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Each bar represents one Monday–Sunday week.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (yearlyDailyUsage.isEmpty()) {
+            item {
+                InfoCard(
+                    "No historical usage records",
+                    "Android has not supplied retained usage history for this period yet. The chart will fill as daily records become available."
+                )
+            }
+        }
+        items(weeklyHistory.reversed(), key = { it.first }) { week ->
+            Card(shape = RoundedCornerShape(14.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Week of " + java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
+                                .format(java.util.Date(week.first)),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(formatDuration(week.second), fontWeight = FontWeight.SemiBold)
+                    }
+                    LinearProgressIndicator(
+                        progress = (week.second.toFloat() / maxWeeklyScreenTime.toFloat()).coerceIn(0f, 1f),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+        item {
+            Text("Daily breakdown · selected week", style = MaterialTheme.typography.titleLarge)
+        }
         if (dailyUsage.isEmpty()) {
-            item { InfoCard("No weekly records", "Your daily usage chart will appear when usage records are available.") }
+            item { InfoCard("No daily records", "Daily usage for the selected week will appear when records are available.") }
         }
         items(weekDays, key = { it.dateEpochMillis }) { day ->
             Card(
