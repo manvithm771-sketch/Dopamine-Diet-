@@ -26,7 +26,7 @@ class LaunchTrackingManager(
     companion object {
         private const val TAG = "Mindful.LaunchTrackingManager"
 
-        // Interval for tracking app launches in milliseconds
+        // Keep the original Mindful foreground-detection cadence.
         private const val TIMER_RATE: Long = 750
     }
 
@@ -49,32 +49,22 @@ class LaunchTrackingManager(
 
     private var lastUsageQueryTimestamp = System.currentTimeMillis()
     private var lastLaunchedApp = ""
-    // Track activity instances, not just package names, so a stale pause/stop
-    // event from one activity cannot hide another active activity in the same app.
-    private val activeActivities = LinkedHashMap<String, String>()
+    // Keep the same package-level foreground event tracking used by the original Mindful app.
+    private val activeApps = mutableListOf<String>()
 
     init {
-        // Register receivers
         lockUnlockReceiver.register(context)
         accessibilityReceiver.register(context)
-
-        // Start tracking
         onDeviceUnlocked()
     }
 
-
     @WorkerThread
     private fun onDeviceUnlocked() {
-        // Check if accessibility is already running
         isManualTrackingOn =
             !Utils.isServiceRunning(context, MindfulAccessibilityService::class.java)
 
-        // Start tracking manually only if accessibility is not running
         if (isManualTrackingOn) {
-            // First cancel earlier task if already not cancelled
             periodicTaskHandle?.cancel(true)
-
-            // Schedule new task
             periodicTaskHandle = executorService.scheduleWithFixedDelay(
                 { findLaunchedApp() },
                 0L,
@@ -91,20 +81,17 @@ class LaunchTrackingManager(
     private fun onDeviceLocked() {
         periodicTaskHandle?.cancel(true)
         periodicTaskHandle = null
-
-        // Cancel reminders and remove overlay
         cancelReminders.invoke()
         dismissOverlay.invoke()
         Log.d(TAG, "onDeviceLocked: Usage tracking stopped")
     }
 
     /**
-     * Detect if any app is opened using usage states.
-     * @param msInPastFromLastCheck  past millis from the last check
+     * Detect foreground app transitions using the same UsageEvents logic as Mindful.
+     * @param msInPastFromLastCheck past milliseconds to include in the query
      */
     @WorkerThread
     private fun findLaunchedApp(msInPastFromLastCheck: Long = 0L) {
-        // Initialize usage states manager
         if (usageStatsManager == null) {
             usageStatsManager =
                 context.getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
@@ -117,68 +104,54 @@ class LaunchTrackingManager(
         val usageEvents = usageStatsManager?.queryEvents(start, timeNow)
         usageEvents?.let {
             val currentEvent = UsageEvents.Event()
-
             while (it.hasNextEvent()) {
                 it.getNextEvent(currentEvent)
-
                 val packageName = currentEvent.packageName ?: continue
-                val activityKey = "$packageName|${currentEvent.className.orEmpty()}"
                 when (currentEvent.eventType) {
-                    UsageEvents.Event.ACTIVITY_RESUMED -> {
-                        activeActivities.remove(activityKey)
-                        activeActivities[activityKey] = packageName
-                    }
-
+                    UsageEvents.Event.ACTIVITY_RESUMED -> activeApps.add(packageName)
                     UsageEvents.Event.ACTIVITY_PAUSED,
-                    UsageEvents.Event.ACTIVITY_STOPPED -> activeActivities.remove(activityKey)
-
-                    else -> {}
+                    UsageEvents.Event.ACTIVITY_STOPPED -> activeApps.remove(packageName)
+                    else -> Unit
                 }
             }
         }
 
-        activeActivities.values.lastOrNull()?.let {
-            if (lastLaunchedApp == it) return
-            invokeNewAppLaunched(it)
+        activeApps.firstOrNull()?.let { packageName ->
+            if (lastLaunchedApp == packageName) return
+            invokeNewAppLaunched(packageName)
         }
-        Log.d(TAG, "findLaunchedApp: Opened app:$lastLaunchedApp Active activities: $activeActivities ")
+        Log.d(TAG, "findLaunchedApp: Opened app:$lastLaunchedApp Active apps: $activeApps")
     }
 
-    /**
-     * Check and Invoke method when new app is launched and tracking is not paused.
-     */
+    /** Counts a genuine foreground transition as a launch. */
     private fun invokeNewAppLaunched(packageName: String) {
         lastLaunchedApp = packageName
         if (isTrackingPaused || packageName.isEmpty()) return
-
         onNewAppLaunched.invoke(packageName)
     }
 
-    fun reInvokeLastLaunchEvent() = recheckCurrentApp(lastLaunchedApp)
-
+    /** Re-evaluates the current app without incrementing its launch counter. */
     private fun recheckCurrentApp(packageName: String) {
         if (isTrackingPaused || packageName.isEmpty()) return
         onCurrentAppRechecked.invoke(packageName)
     }
 
-    /**
-     * Pauses or resumes app launch tracking.
-     *
-     * @param shouldPause True to pause tracking, false to resume.
-     */
+    fun reInvokeLastLaunchEvent() = recheckCurrentApp(lastLaunchedApp)
+
     fun pauseResumeTracking(shouldPause: Boolean) {
         isTrackingPaused = shouldPause
         if (!shouldPause) recheckCurrentApp(lastLaunchedApp)
     }
 
+    fun detectActiveAppForBedtime() {
+        findLaunchedApp(6 * 60 * 60 * 1000)
+    }
+
     fun dispose() {
-        // Un-Register receivers
         lockUnlockReceiver.unRegister(context)
         accessibilityReceiver.unRegister(context)
-
         periodicTaskHandle?.cancel(true)
         executorService.shutdownNow()
-
         onDeviceLocked()
     }
 }
