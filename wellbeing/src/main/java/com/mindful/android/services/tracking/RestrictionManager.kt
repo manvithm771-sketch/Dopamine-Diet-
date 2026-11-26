@@ -41,6 +41,7 @@ class RestrictionManager(
     //  Cache
     private val appsLaunchCount = HashMap<String, Int>(0)
     val getAppsLaunchCount: HashMap<String, Int> get() = appsLaunchCount
+    // Keep launch limits stable if Android recreates the tracker service during the day.
     private val launchCountPrefs = context.getSharedPreferences("app_blocking_launch_counts", Context.MODE_PRIVATE)
     private var launchCountDayKey: String = ""
 
