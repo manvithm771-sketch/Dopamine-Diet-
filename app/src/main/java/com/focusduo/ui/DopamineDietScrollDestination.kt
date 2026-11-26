@@ -9,6 +9,8 @@ import android.text.format.DateFormat
 import android.widget.Toast
 import android.widget.ImageView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -84,6 +88,13 @@ fun DopamineDietScrollDestination() {
     }
 
     val totalToday = stats.count + stats.shortsCount
+    var showInsights by remember { mutableStateOf(false) }
+    if (showInsights) {
+        BackHandler(enabled = true) { showInsights = false }
+        ScrollInsightsScreen(today = totalToday, week = usageOverview.thisWeek, month = usageOverview.thisMonth, allTime = usageOverview.total, onBack = { showInsights = false })
+        return
+    }
+
     val date = remember(is24h) {
         java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date())
     }
@@ -98,12 +109,8 @@ fun DopamineDietScrollDestination() {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "Scroll",
-                    color = ScrollText,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Scroll", color = ScrollText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                StatisticsIcon(Modifier.size(42.dp).clip(CircleShape).clickable { showInsights = true }.padding(10.dp))
             }
         }
         item {
@@ -238,4 +245,59 @@ private fun requestBrainWidget(context: Context) {
     val provider = ComponentName(context, ReelWidgetProvider::class.java)
     val pinned = manager.isRequestPinAppWidgetSupported && manager.requestPinAppWidget(provider, null, null)
     if (!pinned) Toast.makeText(context, "Long-press your home screen, open Widgets, and add Dopamine Diet.", Toast.LENGTH_LONG).show()
+}
+
+@Composable
+private fun StatisticsIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val color = Color(0xFFE5E5EF)
+        val stroke = 2.dp.toPx()
+        listOf(0.35f, 0.65f, 0.95f).forEachIndexed { index, height ->
+            val x = size.width * (0.18f + index * 0.32f)
+            drawLine(color, Offset(x, size.height * (1f - height)), Offset(x, size.height), strokeWidth = stroke)
+        }
+    }
+}
+
+@Composable
+private fun ScrollInsightsScreen(today: Int, week: com.reeltracker.model.PeriodCounts, month: com.reeltracker.model.PeriodCounts, allTime: com.reeltracker.model.PeriodCounts, onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(ScrollBg).padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("‹", color = ScrollText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
+            Column {
+                Text("Scroll insights", color = ScrollText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Your recorded Reels and Shorts activity", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        InsightMetricCard("Today", today, "Reels + Shorts")
+        InsightMetricCard("This week", week.total, "Instagram " + week.instagramReels + " · YouTube " + week.youtubeShorts)
+        InsightMetricCard("This month", month.total, "Instagram " + month.instagramReels + " · YouTube " + month.youtubeShorts)
+        InsightMetricCard("All time", allTime.total, "Instagram " + allTime.instagramReels + " · YouTube " + allTime.youtubeShorts)
+        Text("Platform breakdown", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        PlatformInsightBar("Instagram Reels", allTime.instagramReels, allTime.total)
+        PlatformInsightBar("YouTube Shorts", allTime.youtubeShorts, allTime.total)
+        Text("Counts represent detected feed-item events. They do not measure watch duration.", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun InsightMetricCard(title: String, value: Int, detail: String) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = ScrollCard)) {
+        Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(title, color = ScrollMuted, style = MaterialTheme.typography.labelLarge)
+            Text(value.toString(), color = ScrollText, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text(detail, color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun PlatformInsightBar(label: String, value: Int, total: Int) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row {
+            Text(label, color = ScrollText, modifier = Modifier.weight(1f))
+            Text(value.toString(), color = ScrollMuted)
+        }
+        androidx.compose.material3.LinearProgressIndicator(progress = { if (total > 0) value.toFloat() / total else 0f }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(8.dp)), color = ScrollViolet, trackColor = Color(0xFF292A3B))
+    }
 }
