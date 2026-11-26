@@ -123,24 +123,17 @@ fun DopamineDietScreenTimeDestination(
         })
     }
     val usage by database.nativeDashboardDao()
-        .observeUsageForRange(historyRange.first, historyRange.second)
+        .observeUsageForRange(historyRange.first, historyRange.second, excludedPackages)
         .collectAsState(initial = emptyList())
     val daily by database.nativeDashboardDao()
-        .observeDailyUsageRange(historyRange.first, historyRange.second)
+        .observeDailyUsageRange(historyRange.first, historyRange.second, excludedPackages)
         .collectAsState(initial = emptyList())
     val visibleUsage = remember(usage, excludedPackages) {
         usage.filterNot { it.packageName in excludedPackages }
     }
-    val visibleDaily = remember(daily, excludedPackages) {
-        if (excludedPackages.isEmpty()) daily else daily
-    }
-    val dailyTotals = remember(visibleUsage, visibleDaily, historyRange.third) {
+    val dailyTotals = remember(daily, historyRange.third) {
         historyRange.third.map { day ->
-            visibleUsage.filter { row ->
-                val rowDate = historyRange.third.firstOrNull { it == day }
-                rowDate != null && row.totalScreenTime > 0L
-            }.sumOf { it.totalScreenTime }.takeIf { it > 0L }
-                ?: visibleDaily.firstOrNull { it.dateEpochMillis == day }?.totalScreenTime ?: 0L
+            daily.firstOrNull { it.dateEpochMillis == day }?.totalScreenTime ?: 0L
         }
     }
     val todayRange = remember {
@@ -154,7 +147,7 @@ fun DopamineDietScreenTimeDestination(
         start.timeInMillis to end.timeInMillis
     }
     val todayApps by database.nativeDashboardDao()
-        .observeUsageForRange(todayRange.first, todayRange.second)
+        .observeUsageForRange(todayRange.first, todayRange.second, excludedPackages)
         .collectAsState(initial = emptyList())
     val visibleTodayApps = remember(todayApps, excludedPackages) {
         todayApps.filterNot { it.packageName in excludedPackages }
