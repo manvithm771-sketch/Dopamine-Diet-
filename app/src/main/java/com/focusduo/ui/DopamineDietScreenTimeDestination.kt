@@ -298,12 +298,37 @@ private fun AllScreenTimeAppsScreen(
     packageManager: PackageManager,
     onBack: () -> Unit
 ) {
+    var selectedMetric by remember { mutableStateOf("time") }
+    val sortedRows = remember(appRows, selectedMetric) {
+        if (selectedMetric == "data") {
+            appRows.sortedByDescending { it.totalMobileData + it.totalWifiData }
+        } else {
+            appRows.sortedByDescending { it.totalScreenTime }
+        }
+    }
     Column(Modifier.fillMaxSize().background(TimeBg)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("‹", color = TimeText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
             Column {
                 Text("All Apps", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Screen time · last 52 weeks", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                Text("Last 52 weeks", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(12.dp)).background(TimeCard).padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            listOf("time" to "Time", "data" to "Data").forEach { (metric, label) ->
+                val selected = selectedMetric == metric
+                Box(
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
+                        .background(if (selected) Color(0xFF343640) else Color.Transparent)
+                        .clickable { selectedMetric = metric }.padding(vertical = 11.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(label, color = if (selected) TimeText else TimeMuted, style = MaterialTheme.typography.labelLarge, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
+                }
             }
         }
         androidx.compose.foundation.lazy.LazyColumn(
@@ -311,11 +336,11 @@ private fun AllScreenTimeAppsScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(17.dp)
         ) {
-            if (appRows.isEmpty()) {
+            if (sortedRows.isEmpty()) {
                 item { Text("No app usage history is available for this period.", color = TimeMuted, style = MaterialTheme.typography.bodyMedium) }
             } else {
-                items(appRows.size) { index ->
-                    val app = appRows[index]
+                items(sortedRows.size) { index ->
+                    val app = sortedRows[index]
                     val label = remember(app.packageName) { appDisplayName(packageManager, app.packageName) }
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -325,12 +350,26 @@ private fun AllScreenTimeAppsScreen(
                                 update = { image -> runCatching { image.setImageDrawable(packageManager.getApplicationIcon(app.packageName)) }.onFailure { image.setImageDrawable(null) } }
                             )
                             Text(label, color = TimeText, modifier = Modifier.weight(1f).padding(start = 11.dp), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                            Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                            val value = if (selectedMetric == "data") {
+                                formatDataUsage(app.totalMobileData + app.totalWifiData)
+                            } else {
+                                formatScreenDuration(app.totalScreenTime)
+                            }
+                            Text(value, color = TimeMuted, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+private fun formatDataUsage(kilobytes: Long): String {
+    val megabytes = kilobytes.coerceAtLeast(0L) / 1024.0
+    return if (megabytes >= 1024.0) {
+        String.format(Locale.getDefault(), "%.2f GB", megabytes / 1024.0)
+    } else {
+        String.format(Locale.getDefault(), "%.1f MB", megabytes)
     }
 }
 
