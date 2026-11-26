@@ -117,44 +117,52 @@ internal class NativeUsageRepository(
         }
         val startEpochMillis = startCalendar.timeInMillis
         val manager = appContext.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val dailyStats = manager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            startEpochMillis,
-            endEpochMillis
-        )
-
-        val usageByDay = dailyStats
-            .asSequence()
-            .filter { it.totalTimeInForeground > 0L && it.lastTimeUsed in startEpochMillis until endEpochMillis }
-            .groupBy { stats ->
-                java.util.Calendar.getInstance().apply {
-                    timeInMillis = stats.lastTimeUsed
-                    set(java.util.Calendar.HOUR_OF_DAY, 0)
-                    set(java.util.Calendar.MINUTE, 0)
-                    set(java.util.Calendar.SECOND, 0)
-                    set(java.util.Calendar.MILLISECOND, 0)
-                }.timeInMillis
-            }
+        val dayCalendar = java.util.Calendar.getInstance().apply {
+            timeInMillis = startEpochMillis
+        }
 
         var rowsWritten = 0
-        usageByDay.forEach { (dayStart, statsForDay) ->
-            val existingByPackage = usageDao.getForDay(dayStart).associateBy { it.packageName }
-            val records = statsForDay
+        repeat(weeks * 7) {
+            val dayStart = dayCalendar.timeInMillis
+            if (dayStart >= endEpochMillis) return@repeat
+            val dayEnd = (dayCalendar.clone() as java.util.Calendar).apply {
+                add(java.util.Calendar.DAY_OF_YEAR, 1)
+            }.timeInMillis.coerceAtMost(endEpochMillis)
+
+            // Query one local day at a time. A single 52-week INTERVAL_DAILY
+            // request can be collapsed by Android into a small number of
+            // aggregate records; assigning those records by lastTimeUsed
+            // incorrectly puts the whole history on one day.
+            val dailyStats = manager.queryUsageStats(
+                UsageStatsManager.INTERVAL_DAILY,
+                dayStart,
+                dayEnd
+            )
+            val screenTimeByPackage = dailyStats
+                .asSequence()
+                .filter { it.totalTimeInForeground > 0L }
                 .groupBy { it.packageName }
-                .map { (packageName, packageStats) ->
+                .mapValues { (_, packageStats) ->
+                    packageStats.sumOf { it.totalTimeInForeground } / 1_000L
+                }
+                .filterValues { it > 0L }
+
+            if (screenTimeByPackage.isNotEmpty()) {
+                val existingByPackage = usageDao.getForDay(dayStart).associateBy { it.packageName }
+                val records = screenTimeByPackage.map { (packageName, screenTimeSeconds) ->
                     val existing = existingByPackage[packageName]
                     NativeAppUsageEntity(
                         packageName = packageName,
                         dateEpochMillis = dayStart,
-                        screenTime = packageStats.sumOf { it.totalTimeInForeground } / 1_000L,
+                        screenTime = screenTimeSeconds,
                         mobileData = existing?.mobileData ?: 0L,
                         wifiData = existing?.wifiData ?: 0L
                     )
                 }
-            if (records.isNotEmpty()) {
                 usageDao.insertAll(records)
                 rowsWritten += records.size
             }
+            dayCalendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
         }
 
         NativeUsageRefreshResult.Updated(rowsWritten)
