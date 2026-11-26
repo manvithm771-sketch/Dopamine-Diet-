@@ -80,7 +80,6 @@ fun DopamineDietScreenTimeDestination(
     var openedBlockingTool by remember { mutableStateOf<String?>(null) }
     var showInsights by remember { mutableStateOf(false) }
     var showAllApps by remember { mutableStateOf(false) }
-    var selectedWeekIndex by remember { mutableStateOf(51) }
 
     if (openedBlockingTool != null) {
         NativeHomeScreen(
@@ -354,7 +353,7 @@ private fun AllScreenTimeAppsScreen(
             Text("‹", color = TimeText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
             Column {
                 Text("All Apps", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Last 52 weeks", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                Text("Last 11 days", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
             }
         }
         Row(
