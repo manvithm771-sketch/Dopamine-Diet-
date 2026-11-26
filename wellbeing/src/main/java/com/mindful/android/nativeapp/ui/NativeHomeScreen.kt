@@ -1200,8 +1200,8 @@ private fun AppsContent(
         if (restrictions.isEmpty()) {
             item {
                 InfoCard(
-                    title = "No app restrictions",
-                    body = "No rules are saved yet. Select any installed app below to create its restriction rule."
+                    title = "Blocked apps",
+                    body = "No apps are blocked yet. Select an installed app below to set its blocking limit."
                 )
             }
         }
