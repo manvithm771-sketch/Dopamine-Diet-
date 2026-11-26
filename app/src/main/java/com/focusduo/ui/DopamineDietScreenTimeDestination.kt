@@ -100,27 +100,30 @@ fun DopamineDietScreenTimeDestination(
         return
     }
 
-    val yearRange = remember {
-        val currentWeek = Calendar.getInstance().apply {
+    val historyRange = remember {
+        val today = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            val sinceMonday = (get(Calendar.DAY_OF_WEEK) + 5) % 7
-            add(Calendar.DAY_OF_YEAR, -sinceMonday)
         }
-        val firstWeek = (currentWeek.clone() as Calendar).apply { add(Calendar.WEEK_OF_YEAR, -51) }
-        val end = (currentWeek.clone() as Calendar).apply { add(Calendar.WEEK_OF_YEAR, 1) }
-        Triple(firstWeek.timeInMillis, end.timeInMillis, (0 until 52).map { offset ->
-            (firstWeek.clone() as Calendar).apply { add(Calendar.WEEK_OF_YEAR, offset) }.timeInMillis
+        val start = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -10) }
+        val end = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 1) }
+        Triple(start.timeInMillis, end.timeInMillis, (0..10).map { daysAgo ->
+            (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -daysAgo) }.timeInMillis
         })
     }
     val usage by database.nativeDashboardDao()
-        .observeUsageForRange(yearRange.first, yearRange.second)
+        .observeUsageForRange(historyRange.first, historyRange.second)
         .collectAsState(initial = emptyList())
     val daily by database.nativeDashboardDao()
-        .observeDailyUsageRange(yearRange.first, yearRange.second)
+        .observeDailyUsageRange(historyRange.first, historyRange.second)
         .collectAsState(initial = emptyList())
+    val dailyTotals = remember(daily, historyRange.third) {
+        historyRange.third.map { day ->
+            daily.firstOrNull { it.dateEpochMillis == day }?.totalScreenTime ?: 0L
+        }
+    }
     val todayRange = remember {
         val start = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -135,61 +138,16 @@ fun DopamineDietScreenTimeDestination(
         .observeUsageForRange(todayRange.first, todayRange.second)
         .collectAsState(initial = emptyList())
     val todayTotal = todayApps.sumOf { it.totalScreenTime }
-
-    // Sum the daily aggregates so the annual figure uses the same 52-week dataset as the chart.
-    val annualTotal = daily.sumOf { it.totalScreenTime }
-    val currentWeekDailyTotals = remember(daily) {
-        val monday = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-            add(Calendar.DAY_OF_YEAR, -((get(Calendar.DAY_OF_WEEK) + 5) % 7))
-        }
-        val start = monday.timeInMillis
-        val end = (monday.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 7) }.timeInMillis
-        val totals = MutableList(7) { 0L }
-        daily.filter { it.dateEpochMillis >= start && it.dateEpochMillis < end }.forEach { day ->
-            val dayCalendar = Calendar.getInstance().apply { timeInMillis = day.dateEpochMillis }
-            val index = (dayCalendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
-            totals[index] += day.totalScreenTime
-        }
-        totals
-    }
-    val weeklyTotals = remember(daily, yearRange.third) {
-        val totals = MutableList(52) { 0L }
-        daily.forEach { day ->
-            val weekIndex = yearRange.third.indexOfLast { it <= day.dateEpochMillis }
-            if (weekIndex in totals.indices) totals[weekIndex] += day.totalScreenTime
-        }
-        totals
-    }
-    val selectedWeekStart = yearRange.third[selectedWeekIndex.coerceIn(0, 51)]
-    val selectedWeekEnd = (Calendar.getInstance().apply { timeInMillis = selectedWeekStart }).apply { add(Calendar.DAY_OF_YEAR, 7) }.timeInMillis
-    val selectedWeekDailyTotals = remember(daily, selectedWeekStart) {
-        val totals = MutableList(7) { 0L }
-        daily.filter { it.dateEpochMillis >= selectedWeekStart && it.dateEpochMillis < selectedWeekEnd }.forEach { day ->
-            val dayCalendar = Calendar.getInstance().apply { timeInMillis = day.dateEpochMillis }
-            val dayIndex = (dayCalendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
-            totals[dayIndex] += day.totalScreenTime
-        }
-        totals
-    }
+    val historyTotal = daily.sumOf { it.totalScreenTime }
     val appRows = usage.sortedByDescending { it.totalScreenTime }
     if (showInsights) {
         BackHandler(enabled = true) { showInsights = false }
         ScreenTimeInsightsScreen(
-            annualTotal = annualTotal,
-            weeklyTotals = weeklyTotals,
+            historyTotal = historyTotal,
+            dailyTotals = dailyTotals,
+            dayStarts = historyRange.third,
             appRows = appRows,
             packageManager = context.packageManager,
-            selectedWeekDailyTotals = selectedWeekDailyTotals,
-            selectedWeekIndex = selectedWeekIndex,
-            selectedWeekStart = selectedWeekStart,
-            canGoPrevious = selectedWeekIndex > 0,
-            canGoNext = selectedWeekIndex < 51,
-            onPreviousWeek = { if (selectedWeekIndex > 0) selectedWeekIndex-- },
-            onNextWeek = { if (selectedWeekIndex < 51) selectedWeekIndex++ },
             onBack = { showInsights = false }
         )
         return
@@ -210,7 +168,7 @@ fun DopamineDietScreenTimeDestination(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Screen Time", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Your screen usage over the last 52 weeks.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                    Text("Your screen usage over the last 11 days.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
                 }
                 ScreenStatisticsIcon(Modifier.size(42.dp).clip(CircleShape).clickable { showInsights = true }.padding(10.dp))
             }
@@ -287,16 +245,16 @@ fun DopamineDietScreenTimeDestination(
                         .padding(19.dp),
                     verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Text(formatScreenDuration(annualTotal), color = TimeText, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Text("Total screen time · 52 weeks", color = TimeMuted, style = MaterialTheme.typography.bodyMedium)
-                    Text("52-week history", color = TimeMint, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text(formatScreenDuration(historyTotal), color = TimeText, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                    Text("Total screen time · last 11 days", color = TimeMuted, style = MaterialTheme.typography.bodyMedium)
+                    Text("11-day history", color = TimeMint, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
         item {
-            WeeklyScreenTimeChart(
-                weeklyTotals = weeklyTotals,
-                selectedWeekIndex = selectedWeekIndex
+            DailyScreenTimeChart(
+                dailyTotals = dailyTotals,
+                dayStarts = historyRange.third
             )
         }
         item {
@@ -472,17 +430,11 @@ private fun ScreenStatisticsIcon(modifier: Modifier = Modifier) {
 
 @Composable
 private fun ScreenTimeInsightsScreen(
-    annualTotal: Long,
-    weeklyTotals: List<Long>,
+    historyTotal: Long,
+    dailyTotals: List<Long>,
+    dayStarts: List<Long>,
     appRows: List<NativeAppUsageSummary>,
     packageManager: PackageManager,
-    selectedWeekDailyTotals: List<Long>,
-    selectedWeekIndex: Int,
-    selectedWeekStart: Long,
-    canGoPrevious: Boolean,
-    canGoNext: Boolean,
-    onPreviousWeek: () -> Unit,
-    onNextWeek: () -> Unit,
     onBack: () -> Unit
 ) {
     Column(
@@ -494,20 +446,12 @@ private fun ScreenTimeInsightsScreen(
             Text("‹", color = TimeText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
             Column {
                 Text("Screen time insights", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("A deeper look at your recorded usage", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                Text("Your last 11 days of recorded usage", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
             }
         }
-        InsightSummaryCard("1-year total screen time · 52 weeks", formatScreenDuration(annualTotal))
-        WeekdayScreenTimeChart(
-            dayTotals = selectedWeekDailyTotals,
-            weekNumber = selectedWeekIndex + 1,
-            weekStartMillis = selectedWeekStart,
-            canGoPrevious = canGoPrevious,
-            canGoNext = canGoNext,
-            onPrevious = onPreviousWeek,
-            onNext = onNextWeek
-        )
-        Text("Top apps · last 52 weeks", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        InsightSummaryCard("Total screen time · last 11 days", formatScreenDuration(historyTotal))
+        DailyScreenTimeChart(dailyTotals = dailyTotals, dayStarts = dayStarts)
+        Text("Top apps · last 11 days", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         appRows.take(8).forEach { app ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 AndroidView(modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)), factory = { viewContext -> ImageView(viewContext).apply { scaleType = ImageView.ScaleType.FIT_CENTER } }, update = { image -> runCatching { image.setImageDrawable(packageManager.getApplicationIcon(app.packageName)) }.onFailure { image.setImageDrawable(null) } })
@@ -515,17 +459,17 @@ private fun ScreenTimeInsightsScreen(
                 Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
             }
         }
-        Text("Insights use usage records available on this device. Missing historical records are not estimated.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+        Text("Usage history is collected using the same recent-day UsageEvents approach as Mindful.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
     }
 }
 
 @Composable
-private fun WeeklyScreenTimeChart(
-    weeklyTotals: List<Long>,
-    selectedWeekIndex: Int
+private fun DailyScreenTimeChart(
+    dailyTotals: List<Long>,
+    dayStarts: List<Long>
 ) {
-    val maxWeekly = (weeklyTotals.maxOrNull() ?: 0L).coerceAtLeast(1L)
-    val chartWidth = 52 * 14
+    val maxDaily = (dailyTotals.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val dateFormat = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -533,50 +477,45 @@ private fun WeeklyScreenTimeChart(
     ) {
         Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Weekly screen time", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Text("Last 52 weeks", color = TimeMuted, style = MaterialTheme.typography.labelMedium)
+                Text("Daily screen time", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("Last 11 days", color = TimeMuted, style = MaterialTheme.typography.labelMedium)
             }
-            Text("Each bar represents one week", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
-            Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                Canvas(Modifier.width(chartWidth.dp).height(172.dp)) {
-                    val chartHeight = size.height
-                    val slot = size.width / 52f
-                    listOf(0.25f, 0.5f, 0.75f, 1f).forEach { fraction ->
-                        val y = chartHeight * (1f - fraction)
-                        drawLine(
-                            color = Color(0xFF343640),
-                            start = Offset(0f, y),
-                            end = Offset(size.width, y),
-                            strokeWidth = 1.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
+            Text("Each bar represents one day", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+            Canvas(Modifier.fillMaxWidth().height(172.dp)) {
+                val chartHeight = size.height
+                val slot = size.width / 11f
+                listOf(0.25f, 0.5f, 0.75f, 1f).forEach { fraction ->
+                    val y = chartHeight * (1f - fraction)
+                    drawLine(
+                        color = Color(0xFF343640),
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
+                    )
+                }
+                dailyTotals.take(11).forEachIndexed { index, total ->
+                    val fraction = (total.toFloat() / maxDaily.toFloat()).coerceIn(0f, 1f)
+                    val barHeight = chartHeight * fraction
+                    val barWidth = slot * 0.58f
+                    val left = index * slot + (slot - barWidth) / 2f
+                    if (barHeight > 0f) {
+                        drawRoundRect(
+                            color = if (index == 10) Color(0xFFB6BFFF) else Color(0xFF777D9E),
+                            topLeft = Offset(left, chartHeight - barHeight),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
                         )
                     }
-                    weeklyTotals.take(52).forEachIndexed { index, total ->
-                        val fraction = (total.toFloat() / maxWeekly.toFloat()).coerceIn(0f, 1f)
-                        val barHeight = chartHeight * fraction
-                        val barWidth = slot * 0.58f
-                        val left = index * slot + (slot - barWidth) / 2f
-                        if (barHeight > 0f) {
-                            drawRoundRect(
-                                color = if (index == selectedWeekIndex) Color(0xFFB6BFFF) else Color(0xFF777D9E),
-                                topLeft = Offset(left, chartHeight - barHeight),
-                                size = Size(barWidth, barHeight),
-                                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
-                            )
-                        }
-                    }
                 }
-                Row(Modifier.width(chartWidth.dp).padding(top = 7.dp)) {
-                    (0 until 52).forEach { index ->
-                        Box(Modifier.width(14.dp), contentAlignment = Alignment.Center) {
-                            if (index % 4 == 0 || index == 51) {
-                                Text((index + 1).toString(), color = TimeMuted, style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                dayStarts.take(11).forEachIndexed { index, day ->
+                    if (index == 0 || index == 5 || index == 10) {
+                        Text(dateFormat.format(java.util.Date(day)), color = TimeMuted, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
-            Text("Weeks with no recorded usage appear empty. Scroll horizontally to view all 52 weeks.", color = TimeMuted, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
