@@ -87,6 +87,8 @@ class RestrictionManager(
         val today = currentLocalDayKey()
         if (today == launchCountDayKey) return
         appsLaunchCount.clear()
+        alreadyRestrictedApps.clear()
+        alreadyRestrictedGroups.clear()
         launchCountDayKey = today
         launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).apply()
     }
