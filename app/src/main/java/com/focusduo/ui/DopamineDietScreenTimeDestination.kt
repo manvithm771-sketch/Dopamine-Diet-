@@ -416,7 +416,7 @@ private fun ScreenTimeInsightsScreen(
             }
         }
         WeeklyScreenTimeChart(weeklyTotals = weeklyTotals, selectedWeekIndex = selectedWeekIndex)
-        InsightSummaryCard("Total · 52 weeks", formatScreenDuration(annualTotal))
+        InsightSummaryCard("1-year total screen time", formatScreenDuration(annualTotal))
         InsightSummaryCard("Average per week", formatScreenDuration(averageWeek))
         InsightSummaryCard("Highest week", formatScreenDuration(highestWeek))
         WeekdayScreenTimeChart(
