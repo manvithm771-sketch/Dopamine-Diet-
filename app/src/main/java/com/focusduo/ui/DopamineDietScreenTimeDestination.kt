@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,6 +74,7 @@ fun DopamineDietScreenTimeDestination() {
     val weekTotal = weekly.sumOf { it.totalScreenTime }
     val maxApp = usage.maxOfOrNull { it.totalScreenTime }?.coerceAtLeast(1L) ?: 1L
     val maxDay = weekly.maxOfOrNull { it.totalScreenTime }?.coerceAtLeast(1L) ?: 1L
+    val dayValues = remember(weekly, weekRange.first) { (0..6).map { offset -> val dayStart = weekRange.first + offset * 86_400_000L; weekly.firstOrNull { it.dateEpochMillis == dayStart }?.totalScreenTime ?: 0L } }
     val appRows = usage.sortedByDescending { it.totalScreenTime }.take(6)
 
     androidx.compose.foundation.lazy.LazyColumn(
@@ -105,7 +108,7 @@ fun DopamineDietScreenTimeDestination() {
                         val barCount = 5
                         val gap = size.width * 0.075f
                         val barWidth = (size.width - gap * (barCount - 1)) / barCount
-                        val values = listOf(0.64f, 0.88f, 0.42f, 0.7f, 0.82f)
+                        val values = dayValues.takeLast(barCount).map { (it.toFloat() / maxDay).coerceAtLeast(0.04f) }
                         values.forEachIndexed { index, value ->
                             val h = size.height * value
                             drawRoundRect(
@@ -127,13 +130,7 @@ fun DopamineDietScreenTimeDestination() {
                         Text("This week", color = TimeMuted, style = MaterialTheme.typography.labelSmall)
                     }
                     Row(Modifier.fillMaxWidth().height(92.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
-                        val days = remember(weekly, weekRange.first) {
-                            (0..6).map { offset ->
-                                val dayStart = weekRange.first + offset * 86_400_000L
-                                weekly.firstOrNull { it.dateEpochMillis == dayStart }?.totalScreenTime ?: 0L
-                            }
-                        }
-                        days.forEachIndexed { index, seconds ->
+                        dayValues.forEachIndexed { index, seconds ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Box(Modifier.width(22.dp).height((70f * (seconds.toFloat() / maxDay).coerceAtLeast(0.04f)).dp).clip(RoundedCornerShape(8.dp)).background(Brush.verticalGradient(listOf(TimeViolet, Color(0xFF4B3A87)))))
                                 Text(listOf("M","T","W","T","F","S","S")[index], color = TimeMuted, style = MaterialTheme.typography.labelSmall)
@@ -151,8 +148,8 @@ fun DopamineDietScreenTimeDestination() {
                 }
             }
         } else {
-            items(appRows.size) { index ->
-                val item = appRows[index]
+            items(appRows) { item ->
+                val index = appRows.indexOf(item)
                 val label = remember(item.packageName) { appDisplayName(context.packageManager, item.packageName) }
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
