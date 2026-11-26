@@ -96,6 +96,70 @@ internal class NativeUsageRepository(
         NativeUsageRefreshResult.Updated(rows.size)
     }
 
+
+    /**
+     * Backfills Android's retained daily UsageStats into the local history table.
+     * Android controls how far back UsageStats remain available; missing days are
+     * deliberately left untouched rather than represented as fabricated zero usage.
+     */
+    suspend fun refreshHistory(weeks: Int = 52): NativeUsageRefreshResult = withContext(Dispatchers.IO) {
+        require(weeks in 1..260) { "History range must be between 1 and 260 weeks." }
+        if (!hasUsageAccess()) return@withContext NativeUsageRefreshResult.UsageAccessRequired
+
+        val endEpochMillis = System.currentTimeMillis()
+        val startCalendar = java.util.Calendar.getInstance().apply {
+            timeInMillis = endEpochMillis
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+            add(java.util.Calendar.DAY_OF_YEAR, -(weeks * 7 - 1))
+        }
+        val startEpochMillis = startCalendar.timeInMillis
+        val manager = appContext.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val dailyStats = manager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY,
+            startEpochMillis,
+            endEpochMillis
+        )
+
+        val usageByDay = dailyStats
+            .asSequence()
+            .filter { it.totalTimeInForeground > 0L && it.lastTimeUsed in startEpochMillis until endEpochMillis }
+            .groupBy { stats ->
+                java.util.Calendar.getInstance().apply {
+                    timeInMillis = stats.lastTimeUsed
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }.timeInMillis
+            }
+
+        var rowsWritten = 0
+        usageByDay.forEach { (dayStart, statsForDay) ->
+            val existingByPackage = usageDao.getForDay(dayStart).associateBy { it.packageName }
+            val records = statsForDay
+                .groupBy { it.packageName }
+                .map { (packageName, packageStats) ->
+                    val existing = existingByPackage[packageName]
+                    NativeAppUsageEntity(
+                        packageName = packageName,
+                        dateEpochMillis = dayStart,
+                        screenTime = packageStats.sumOf { it.totalTimeInForeground } / 1_000L,
+                        mobileData = existing?.mobileData ?: 0L,
+                        wifiData = existing?.wifiData ?: 0L
+                    )
+                }
+            if (records.isNotEmpty()) {
+                usageDao.insertAll(records)
+                rowsWritten += records.size
+            }
+        }
+
+        NativeUsageRefreshResult.Updated(rowsWritten)
+    }
+
     @Suppress("DEPRECATION")
     private fun hasUsageAccess(): Boolean {
         val appOps = appContext.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
