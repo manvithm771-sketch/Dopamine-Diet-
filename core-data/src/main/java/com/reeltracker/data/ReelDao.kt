@@ -27,6 +27,9 @@ interface ReelDao {
     @Query("SELECT COUNT(*) FROM reel_events WHERE strategyId = :youtubeStrategy")
     fun youtubeShortsTotalCount(youtubeStrategy: String): Flow<Int>
 
+    @Query("SELECT * FROM reel_events WHERE wallClock >= :start AND wallClock < :end")
+    fun eventsBetween(start: Long, end: Long): Flow<List<ReelEvent>>
+
     @Query("SELECT MAX(wallClock) FROM reel_events")
     fun lastEventAt(): Flow<Long?>
 }
