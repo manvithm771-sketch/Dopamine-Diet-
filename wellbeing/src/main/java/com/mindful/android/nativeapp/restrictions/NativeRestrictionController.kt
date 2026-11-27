@@ -101,7 +101,6 @@ internal class NativeRestrictionController(context: Context) {
         appRows: List<NativeAppRestrictionEntity>,
         groupRows: List<NativeRestrictionGroupEntity>
     ): Boolean {
-        if (!hasUsageAccess() || !Settings.canDrawOverlays(appContext)) return false
         val installedPackages = installedPackageNames()
         val filteredRows = filterNativeRestrictionInputs(
             appRows = appRows,
@@ -113,6 +112,7 @@ internal class NativeRestrictionController(context: Context) {
         ManagedAppSuspensionController(appContext).reconcileConfiguredPackages(
             rules.apps.keys + rules.groups.values.flatMap { it.distractingApps }
         )
+        if (!hasUsageAccess() || !Settings.canDrawOverlays(appContext)) return false
         if (rules.apps.isEmpty() && rules.groups.isEmpty()) {
             if (connection.isActive) {
                 connection.service?.getRestrictionManager?.updateRestrictions(hashMapOf(), hashMapOf())
