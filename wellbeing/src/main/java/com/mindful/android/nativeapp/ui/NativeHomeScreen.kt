@@ -204,7 +204,8 @@ fun NativeHomeScreen(
         Scaffold(
             modifier = modifier.fillMaxSize(),
             topBar = {
-                if (selectedTab != NativeTab.DASHBOARD) {
+                // Hide the app header for the entire duration of an active focus session.
+                if (activeFocusSession == null && selectedTab != NativeTab.DASHBOARD) {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                         if (!showInternalNavigation && onStandaloneBack != null && !startOnWebsiteBlock) {
                             TextButton(onClick = onStandaloneBack) {
@@ -225,7 +226,8 @@ fun NativeHomeScreen(
                 }
             },
             bottomBar = {
-                if (showInternalNavigation) {
+                // Remove the bottom navigation completely while a focus session is active.
+                if (showInternalNavigation && activeFocusSession == null) {
                     NavigationBar {
                         tabs.forEach { tab ->
                             NavigationBarItem(
