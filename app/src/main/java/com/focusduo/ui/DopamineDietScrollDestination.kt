@@ -44,6 +44,7 @@ fun DopamineDietScrollDestination() {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val usageOverview by viewModel.usageOverview.collectAsStateWithLifecycle()
     val lastEventAt by viewModel.lastEventAt.collectAsStateWithLifecycle()
+    val dailyCounts by viewModel.dailyCounts.collectAsStateWithLifecycle()
     val exportMessage by viewModel.exportMessage.collectAsStateWithLifecycle()
 
     var tracking by remember { mutableStateOf(readTrackingState(context)) }
@@ -79,6 +80,7 @@ fun DopamineDietScrollDestination() {
                 stats = stats,
                 usageOverview = usageOverview,
                 lastEventAt = lastEventAt,
+                dailyCounts = dailyCounts,
                 tracking = tracking,
                 is24h = is24h,
                 exportMessage = exportMessage,
