@@ -110,6 +110,9 @@ internal class NativeRestrictionController(context: Context) {
             protectedPackageNames = protectedSystemPackageNames(appContext)
         )
         val rules = buildNativeRestrictionRules(filteredRows.apps, filteredRows.groups)
+        ManagedAppSuspensionController(appContext).reconcileConfiguredPackages(
+            rules.apps.keys + rules.groups.values.flatMap { it.distractingApps }
+        )
         if (rules.apps.isEmpty() && rules.groups.isEmpty()) {
             if (connection.isActive) {
                 connection.service?.getRestrictionManager?.updateRestrictions(hashMapOf(), hashMapOf())
