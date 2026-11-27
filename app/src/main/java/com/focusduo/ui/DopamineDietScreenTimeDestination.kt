@@ -159,6 +159,9 @@ fun DopamineDietScreenTimeDestination(
         todayApps.filterNot { it.packageName in excludedPackages }
     }
     val todayTotal = visibleTodayApps.sumOf { it.totalScreenTime }
+    val todayAppRows = remember(visibleTodayApps) {
+        visibleTodayApps.sortedByDescending { it.totalScreenTime }
+    }
     val historyTotal = dailyTotals.sum()
     val appRows = visibleUsage.sortedByDescending { it.totalScreenTime }
     if (showInsights) {
@@ -176,7 +179,7 @@ fun DopamineDietScreenTimeDestination(
 
     if (showAllApps) {
         BackHandler(enabled = true) { showAllApps = false }
-        AllScreenTimeAppsScreen(appRows, context.packageManager) { showAllApps = false }
+        AllScreenTimeAppsScreen(todayAppRows, context.packageManager) { showAllApps = false }
         return
     }
 
@@ -189,7 +192,7 @@ fun DopamineDietScreenTimeDestination(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Screen Time", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Your screen usage over the last 11 days.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                    Text("Your screen usage today.", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
                 }
                 ScreenStatisticsIcon(Modifier.size(42.dp).clip(CircleShape).clickable { showInsights = true }.padding(10.dp))
             }
@@ -218,9 +221,9 @@ fun DopamineDietScreenTimeDestination(
             }
         }
         item {
-            Text("Today's app usage", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("Top apps today", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
-        if (visibleTodayApps.isEmpty()) {
+        if (todayAppRows.isEmpty()) {
             item {
                 Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = TimeCard)) {
                     Text(
@@ -232,8 +235,8 @@ fun DopamineDietScreenTimeDestination(
                 }
             }
         } else {
-            items(visibleTodayApps.sortedByDescending { it.totalScreenTime }.size) { index ->
-                val app = visibleTodayApps.sortedByDescending { it.totalScreenTime }[index]
+            items(minOf(5, todayAppRows.size)) { index ->
+                val app = todayAppRows[index]
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     AndroidView(
                         modifier = Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)),
@@ -255,27 +258,12 @@ fun DopamineDietScreenTimeDestination(
             }
         }
         item {
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = TimeCard)
-            ) {
-                Column(
-                    Modifier.fillMaxWidth()
-                        .background(Brush.linearGradient(listOf(Color(0xFF1C2030), Color(0xFF171923))))
-                        .padding(19.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Text(formatScreenDuration(historyTotal), color = TimeText, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Text("Total screen time · last 11 days", color = TimeMuted, style = MaterialTheme.typography.bodyMedium)
-                    Text("11-day history", color = TimeMint, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-        item {
-            DailyScreenTimeChart(
-                dailyTotals = dailyTotals,
-                dayStarts = historyRange.third
+            Text(
+                "More  ›",
+                color = TimeMint,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth().clickable { showAllApps = true }.padding(vertical = 8.dp)
             )
         }
         item {
@@ -292,51 +280,7 @@ fun DopamineDietScreenTimeDestination(
                 onClick = { openedBlockingTool = "websites" }
             )
         }
-        item {
-            Text("All Apps", color = TimeText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        }
-        if (appRows.isEmpty()) {
-            item {
-                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = TimeCard)) {
-                    Text(
-                        "No app usage history is available for this period. Check that Usage Access is enabled for Dopamine Diet.",
-                        color = TimeMuted,
-                        modifier = Modifier.padding(18.dp),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        } else {
-            items(appRows.size) { index ->
-                val app = appRows[index]
-                val label = remember(app.packageName) { appDisplayName(context.packageManager, app.packageName) }
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AndroidView(
-                            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)),
-                            factory = { viewContext ->
-                                ImageView(viewContext).apply {
-                                    scaleType = ImageView.ScaleType.FIT_CENTER
-                                    setPadding(3, 3, 3, 3)
-                                }
-                            },
-                            update = { imageView ->
-                                runCatching {
-                                    imageView.setImageDrawable(context.packageManager.getApplicationIcon(app.packageName))
-                                }.onFailure {
-                                    imageView.setImageDrawable(null)
-                                }
-                            }
-                        )
-                        Column(Modifier.weight(1f).padding(start = 11.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(label, color = TimeText, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                        }
-                        Text(formatScreenDuration(app.totalScreenTime), color = TimeMuted, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        }
-    }
+
 }
 
 
@@ -360,7 +304,7 @@ private fun AllScreenTimeAppsScreen(
             Text("‹", color = TimeText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
             Column {
                 Text("All Apps", color = TimeText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Last 11 days", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
+                Text("Today", color = TimeMuted, style = MaterialTheme.typography.bodySmall)
             }
         }
         Row(
