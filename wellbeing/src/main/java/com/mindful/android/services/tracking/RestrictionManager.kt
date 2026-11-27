@@ -9,25 +9,18 @@ import com.mindful.android.helpers.usages.ScreenUsageHelper
 import com.mindful.android.models.AppRestriction
 import com.mindful.android.models.RestrictionGroup
 import com.mindful.android.models.RestrictionState
-import java.util.Calendar
+import com.mindful.android.utils.DateTimeUtils
 
 class RestrictionManager(
     private val context: Context,
     private val stopIfNoUsage: () -> Unit,
     private val usageStatsManager: UsageStatsManager = context.getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager,
-    private val screenUsageProvider: () -> Map<String, Long> = {
-        ScreenUsageHelper.fetchAppUsageTodayTillNow(usageStatsManager)
-    },
 ) {
     private val TAG = "Mindful.RestrictionManager"
 
-    companion object {
-        private const val LAUNCH_COUNT_DAY_KEY = "local_day"
-        private const val LAUNCH_COUNT_PREFIX = "count:"
-    }
-
     val isIdle: Boolean
         get() = focusedApps.isEmpty()
+                && bedtimeApps.isEmpty()
                 && appsRestrictions.isEmpty()
                 && restrictionGroups.isEmpty()
 
@@ -37,17 +30,11 @@ class RestrictionManager(
 
     // Focus
     private var focusedApps = setOf<String>()
+    private var bedtimeApps = setOf<String>()
 
     //  Cache
     private val appsLaunchCount = HashMap<String, Int>(0)
     val getAppsLaunchCount: HashMap<String, Int> get() = appsLaunchCount
-    // Keep launch limits stable if Android recreates the tracker service during the day.
-    private val launchCountPrefs = context.getSharedPreferences("app_blocking_launch_counts", Context.MODE_PRIVATE)
-    private var launchCountDayKey: String = ""
-
-    init {
-        restoreLaunchCountsForToday()
-    }
 
     private val alreadyRestrictedApps = HashMap<String, RestrictionState>(0)
     private val alreadyRestrictedGroups = HashMap<Int, RestrictionState>(0)
@@ -56,42 +43,6 @@ class RestrictionManager(
         alreadyRestrictedApps.clear()
         alreadyRestrictedGroups.clear()
         appsLaunchCount.clear()
-        launchCountDayKey = currentLocalDayKey()
-        launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, launchCountDayKey).commit()
-    }
-
-    private fun currentLocalDayKey(): String {
-        val calendar = Calendar.getInstance()
-        return "${calendar.get(Calendar.YEAR)}-${calendar.get(Calendar.DAY_OF_YEAR)}"
-    }
-
-    private fun restoreLaunchCountsForToday() {
-        val today = currentLocalDayKey()
-        launchCountDayKey = today
-        if (launchCountPrefs.getString(LAUNCH_COUNT_DAY_KEY, null) != today) {
-            launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).commit()
-            return
-        }
-
-        launchCountPrefs.all.forEach { (key, value) ->
-            if (key.startsWith(LAUNCH_COUNT_PREFIX)) {
-                val packageName = key.removePrefix(LAUNCH_COUNT_PREFIX)
-                val count = value as? Int
-                if (packageName.isNotBlank() && count != null && count > 0) {
-                    appsLaunchCount[packageName] = count
-                }
-            }
-        }
-    }
-
-    private fun ensureLaunchCountsForToday() {
-        val today = currentLocalDayKey()
-        if (today == launchCountDayKey) return
-        appsLaunchCount.clear()
-        alreadyRestrictedApps.clear()
-        alreadyRestrictedGroups.clear()
-        launchCountDayKey = today
-        launchCountPrefs.edit().clear().putString(LAUNCH_COUNT_DAY_KEY, today).commit()
     }
 
     fun updateRestrictions(
@@ -118,50 +69,48 @@ class RestrictionManager(
         Log.d(TAG, "updateFocusedApps: Focus apps updated: $focusedApps")
     }
 
+    fun updateBedtimeApps(apps: Set<String>?) {
+        bedtimeApps = apps ?: emptySet()
+        if (apps == null) stopIfNoUsage.invoke()
+        Log.d(TAG, "updateBedtimeApps: Bedtime apps updated: $bedtimeApps")
+    }
 
-    // A real foreground transition counts as a launch. Timer, unlock, and midnight
-    // callbacks must re-evaluate limits without consuming another launch.
-    fun isAppRestricted(packageName: String): RestrictionState? =
-        evaluateAppRestriction(packageName, countLaunch = true)
 
-    fun recheckAppRestriction(packageName: String): RestrictionState? =
-        evaluateAppRestriction(packageName, countLaunch = false)
-
-    private fun evaluateAppRestriction(
-        packageName: String,
-        countLaunch: Boolean,
-    ): RestrictionState? {
-        ensureLaunchCountsForToday()
-
-        // If already restricted by focus or cached
+    // returns nearest time stamp for rechecking
+    fun isAppRestricted(packageName: String): RestrictionState? {
+        // If already restricted by focus or bedtime or cached
         val alreadyRestrictedState = evaluateIfAlreadyRestricted(packageName)
-        if (alreadyRestrictedState != null) return alreadyRestrictedState
+        if (alreadyRestrictedState != null) {
+            return alreadyRestrictedState
+        }
 
         // If no restrictions
         val restriction = appsRestrictions[packageName] ?: return null
 
-        val launchCount = if (countLaunch) {
-            (appsLaunchCount[packageName] ?: 0) + 1
-        } else {
-            appsLaunchCount[packageName] ?: 0
-        }
-        if (countLaunch) {
-            appsLaunchCount[packageName] = launchCount
-            launchCountPrefs.edit()
-                .putString(LAUNCH_COUNT_DAY_KEY, launchCountDayKey)
-                .putInt("$LAUNCH_COUNT_PREFIX$packageName", launchCount)
-                .apply()
-        }
-        if (restriction.launchLimit > 0 && launchCount > restriction.launchLimit) {
+        // Increment and Check app launch count
+        val launchCount = appsLaunchCount.getOrDefault(packageName, 0) + 1
+        if ((restriction.launchLimit > 0) && (launchCount > restriction.launchLimit)) {
             return RestrictionState(type = RestrictionType.LAUNCH_COUNT).also {
                 alreadyRestrictedApps[packageName] = it
             }
         }
+        appsLaunchCount[packageName] = launchCount
 
         val futureStates: MutableSet<RestrictionState> = mutableSetOf()
+
+        /// evaluate active periods
+        evaluateActivePeriodLimit(restriction, futureStates)?.let { return it }
+
+        /// Evaluate screen time
         evaluateScreenTimeLimit(restriction, futureStates)?.let { return it }
 
-        return futureStates.minByOrNull { it.timeLeftMillis }
+        /// Return the nearest expiration
+        if (futureStates.isNotEmpty()) {
+            val nearestFutureState = futureStates.minBy { it.timeLeftMillis }
+            return nearestFutureState
+        } else {
+            return null
+        }
     }
 
     private fun evaluateIfAlreadyRestricted(packageName: String): RestrictionState? {
@@ -170,18 +119,74 @@ class RestrictionManager(
                 type = RestrictionType.FOCUS
             )
 
+            bedtimeApps.contains(packageName) -> RestrictionState(
+                type = RestrictionType.BEDTIME,
+            )
+
             alreadyRestrictedApps.containsKey(packageName) -> alreadyRestrictedApps[packageName]
             else -> null
         }
     }
 
 
+    private fun evaluateActivePeriodLimit(
+        restriction: AppRestriction,
+        futureState: MutableSet<RestrictionState>,
+    ): RestrictionState? {
+
+        /// Check app's active period
+        if (restriction.activePeriodStart != restriction.activePeriodEnd) {
+            val state = RestrictionState(type = RestrictionType.APP_ACTIVE_PERIOD)
+
+            /// Outside active period
+            if (DateTimeUtils.isTimeOutsideTODs(
+                    restriction.activePeriodStart,
+                    restriction.activePeriodEnd
+                )
+            ) {
+                Log.d(TAG, "evaluateActivePeriodLimit: App's active period is over")
+                return state
+            }
+            /// Launched between active period calculate expiration time
+            else {
+                val willOverInMs = DateTimeUtils.todDifferenceFromNow(restriction.activePeriodEnd)
+                futureState.add(state.copy(timeLeftMillis = willOverInMs))
+            }
+        }
+
+
+        /// Check group's active period
+        restrictionGroups[restriction.associatedGroupId]?.let {
+            if (it.activePeriodStart != it.activePeriodEnd) {
+                val state = RestrictionState(
+                    type = RestrictionType.GROUP_ACTIVE_PERIOD,
+                    groupName = it.groupName,
+                )
+                /// Outside active period
+                if (DateTimeUtils.isTimeOutsideTODs(it.activePeriodStart, it.activePeriodEnd)) {
+                    Log.d(
+                        TAG,
+                        "evaluateActivePeriodLimit: ${it.groupName} group's active period is over"
+                    )
+                    return state
+                }
+                /// Launched between active period calculate expiration time
+                else {
+                    val willOverInMs = DateTimeUtils.todDifferenceFromNow(it.activePeriodEnd)
+                    futureState.add(state.copy(timeLeftMillis = willOverInMs))
+                }
+            }
+        }
+
+        return null
+    }
+
     private fun evaluateScreenTimeLimit(
         restriction: AppRestriction,
         futureStates: MutableSet<RestrictionState>,
     ): RestrictionState? {
         // Usage map
-        val screenUsage = screenUsageProvider.invoke()
+        val screenUsage = ScreenUsageHelper.fetchAppUsageTodayTillNow(usageStatsManager)
 
         /// Check for app timer
         if (restriction.timerSec > 0) {
