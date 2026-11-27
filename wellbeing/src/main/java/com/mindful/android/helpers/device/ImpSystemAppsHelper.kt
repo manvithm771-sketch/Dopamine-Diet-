@@ -21,7 +21,8 @@ object ImpSystemAppsHelper {
         "calculator",
         "clock",
         "camera",
-        "file",
+        "myfiles",
+        "documentsui",
         "files",
         "filemanager",
         "contacts",
@@ -34,6 +35,7 @@ object ImpSystemAppsHelper {
         "settings",
         "truecaller",
         "voicerecorder",
+        "voicenote",
         "soundrecorder",
         "recorder"
     )
@@ -43,10 +45,10 @@ object ImpSystemAppsHelper {
      * visible label and package name supports different Android manufacturers.
      */
     fun isIneligibleForBlocking(appName: String, packageName: String): Boolean {
-        val normalizedName = normalizeIdentifier(appName)
-        val normalizedPackage = normalizeIdentifier(packageName)
+        val nameTokens = tokenize(appName)
+        val packageTokens = tokenize(packageName)
         return ineligibleAppIdentifiers.any { identifier ->
-            normalizedName.contains(identifier) || normalizedPackage.contains(identifier)
+            identifier in nameTokens || identifier in packageTokens
         }
     }
 
@@ -71,8 +73,11 @@ object ImpSystemAppsHelper {
         }
     }
 
-    private fun normalizeIdentifier(value: String): String =
-        value.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
+    private fun tokenize(value: String): Set<String> =
+        value.lowercase(Locale.ROOT)
+            .split(Regex("[^a-z0-9]+"))
+            .filter { it.isNotBlank() }
+            .toSet()
 
     private fun getDefaultLauncherPackageName(packageManager: PackageManager): String? =
         packageManager.resolveActivity(
