@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -40,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.activity.compose.BackHandler
@@ -75,6 +77,7 @@ fun DopamineDietScrollDestination() {
     val viewModel: TodayViewModel = viewModel()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val usageOverview by viewModel.usageOverview.collectAsStateWithLifecycle()
+    val dailyScrollCounts by viewModel.dailyScrollCounts.collectAsStateWithLifecycle()
     val lastEventAt by viewModel.lastEventAt.collectAsStateWithLifecycle()
     val exportMessage by viewModel.exportMessage.collectAsStateWithLifecycle()
 
@@ -91,7 +94,7 @@ fun DopamineDietScrollDestination() {
     var showInsights by remember { mutableStateOf(false) }
     if (showInsights) {
         BackHandler(enabled = true) { showInsights = false }
-        ScrollInsightsScreen(today = totalToday, week = usageOverview.thisWeek, month = usageOverview.thisMonth, allTime = usageOverview.total, onBack = { showInsights = false })
+        ScrollInsightsScreen(today = totalToday, week = usageOverview.thisWeek, month = usageOverview.thisMonth, allTime = usageOverview.total, daily = dailyScrollCounts, onBack = { showInsights = false })
         return
     }
 
@@ -260,8 +263,8 @@ private fun StatisticsIcon(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ScrollInsightsScreen(today: Int, week: com.reeltracker.model.PeriodCounts, month: com.reeltracker.model.PeriodCounts, allTime: com.reeltracker.model.PeriodCounts, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(ScrollBg).padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+private fun ScrollInsightsScreen(today: Int, week: com.reeltracker.model.PeriodCounts, month: com.reeltracker.model.PeriodCounts, allTime: com.reeltracker.model.PeriodCounts, daily: List<com.reeltracker.model.DailyScrollCount>, onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(ScrollBg).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("‹", color = ScrollText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
             Column {
@@ -273,12 +276,66 @@ private fun ScrollInsightsScreen(today: Int, week: com.reeltracker.model.PeriodC
         InsightMetricCard("This week", week.total, "Instagram " + week.instagramReels + " · YouTube " + week.youtubeShorts)
         InsightMetricCard("This month", month.total, "Instagram " + month.instagramReels + " · YouTube " + month.youtubeShorts)
         InsightMetricCard("All time", allTime.total, "Instagram " + allTime.instagramReels + " · YouTube " + allTime.youtubeShorts)
+        DailyScrollBarChart(daily)
         Text("Platform breakdown", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         PlatformInsightBar("Instagram Reels", allTime.instagramReels, allTime.total)
         PlatformInsightBar("YouTube Shorts", allTime.youtubeShorts, allTime.total)
         Text("Counts represent detected feed-item events. They do not measure watch duration.", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
     }
 }
+
+
+@Composable
+private fun DailyScrollBarChart(days: List<com.reeltracker.model.DailyScrollCount>) {
+    val maxCount = (days.maxOfOrNull { it.total } ?: 0).coerceAtLeast(1)
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = ScrollCard)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Daily scroll count", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("Last 7 days · Reels + Shorts", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
+            Row(
+                Modifier.fillMaxWidth().height(150.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                days.forEach { day ->
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        Text(
+                            day.total.toString(),
+                            color = ScrollText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                        Spacer(Modifier.height(5.dp))
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height((92f * day.total / maxCount).coerceAtLeast(3f).dp)
+                                .clip(RoundedCornerShape(topStart = 7.dp, topEnd = 7.dp))
+                                .background(ScrollViolet)
+                        )
+                        Spacer(Modifier.height(7.dp))
+                        Text(
+                            day.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault()),
+                            color = ScrollMuted,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun InsightMetricCard(title: String, value: Int, detail: String) {
