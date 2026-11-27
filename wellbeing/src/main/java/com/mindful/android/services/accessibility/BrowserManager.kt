@@ -27,7 +27,7 @@ class BrowserManager(
 
 
     /**
-     * Blocks access to websites based on current settings.
+     * Blocks access to websites and short-form content based on current settings.
      *
      * @param node        The AccessibilityNodeInfo of the current view.
      * @param packageName The package name of the app.
@@ -46,24 +46,18 @@ class BrowserManager(
         url = url.replace("google.com/amp/s/amp.", "")
 
         // Block websites
-        val host = Utils.parseHostNameFromUrl(url)?.let(::normalizeWebsiteHost) ?: return
-        val manuallyBlocked = wellbeing.blockedWebsites.any { blocked ->
-            normalizeWebsiteHost(blocked)?.let { host == it || host.endsWith(".$it") } == true
-        }
-        val adultListBlocked = wellbeing.nsfwWebsites.any { blocked ->
-            normalizeWebsiteHost(blocked)?.let { host == it || host.endsWith(".$it") } == true
-        }
-        val knownAdultDomainBlocked = nsfwDomains.any { (domain, enabled) ->
-            enabled && normalizeWebsiteHost(domain)?.let { host == it || host.endsWith(".$it") } == true
-        }
+        val host = Utils.parseHostNameFromUrl(url) ?: return
 
         when {
-            manuallyBlocked || adultListBlocked || knownAdultDomainBlocked -> {
+            wellbeing.blockedWebsites.contains(host)
+                    || wellbeing.nsfwWebsites.contains(host)
+                    || nsfwDomains[host] ?: false
+                -> {
                 Log.d(TAG, "blockDistraction: Blocked website $host opened in $packageName")
                 blockedContentGoBack.invoke()
             }
 
-            // Track selected short-form surfaces in browsers using the same daily allowance.
+            // Block short form content
             shortsPlatformManager.checkAndBlockShortsOnBrowser(wellbeing, url) -> return
 
             // Activate safe search if NSFW is blocked
@@ -167,23 +161,6 @@ class BrowserManager(
 
         fun clearNsfwDomains() {
             nsfwDomains = mapOf()
-        }
-
-
-        private fun normalizeWebsiteHost(value: String): String? {
-            val raw = value.trim().lowercase()
-            val uri = runCatching {
-                java.net.URI(if (raw.contains("://")) raw else "https://$raw")
-            }.getOrNull() ?: return null
-            var host = uri.host?.lowercase()?.trimEnd('.') ?: return null
-            while (host.startsWith("www.") || host.startsWith("mobile.") || host.startsWith("m.")) {
-                host = when {
-                    host.startsWith("www.") -> host.removePrefix("www.")
-                    host.startsWith("mobile.") -> host.removePrefix("mobile.")
-                    else -> host.removePrefix("m.")
-                }
-            }
-            return host.takeIf { it.isNotBlank() }
         }
 
         /**
