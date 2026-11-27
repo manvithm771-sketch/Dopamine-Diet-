@@ -403,6 +403,7 @@ private fun StatisticsContent(
     } else {
         statsRows.sortedByDescending { appMetric(it) }
     }
+    val displayedUsage = if (includeAllApps) sortedUsage else sortedUsage.take(4)
     val weekDays = remember(dailyUsage, weekStartEpochMillis) {
         val recordedDays = dailyUsage.associateBy { it.dateEpochMillis }
         (0..6).map { dayIndex ->
@@ -583,7 +584,7 @@ private fun StatisticsContent(
                 )
             }
         } else {
-            items(sortedUsage, key = { it.packageName }) { app ->
+            items(displayedUsage, key = { it.packageName }) { app ->
                 Card(
                     modifier = Modifier.clickable { onSelectApp(app.packageName) },
                     shape = RoundedCornerShape(18.dp)
@@ -602,12 +603,12 @@ private fun StatisticsContent(
                 }
             }
         }
-        if (!includeAllApps && selectedMetric != "alphabetic") {
+        if (!includeAllApps && sortedUsage.size > 4) {
             item {
                 TextButton(
                     onClick = { includeAllApps = true },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Show all apps") }
+                ) { Text("More") }
             }
         }
     }
