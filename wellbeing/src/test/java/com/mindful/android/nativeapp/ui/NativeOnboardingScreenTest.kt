@@ -8,9 +8,9 @@ class NativeOnboardingScreenTest {
     @Test
     fun essentialPermissionsAreRequired() {
         assertFalse(isNativeOnboardingReady(NativePermissionStatus(usageAccess = false, overlayAccess = true, exactAlarms = true, defaultHome = true), 35))
-        assertFalse(isNativeOnboardingReady(NativePermissionStatus(usageAccess = true, overlayAccess = false, exactAlarms = true), 35))
-        assertFalse(isNativeOnboardingReady(NativePermissionStatus(usageAccess = true, overlayAccess = true, exactAlarms = false), 35))
-        assertTrue(isNativeOnboardingReady(NativePermissionStatus(usageAccess = true, overlayAccess = true, exactAlarms = true), 35))
+        assertFalse(isNativeOnboardingReady(NativePermissionStatus(usageAccess = true, overlayAccess = false, exactAlarms = true, defaultHome = true), 35))
+        assertFalse(isNativeOnboardingReady(NativePermissionStatus(usageAccess = true, overlayAccess = true, exactAlarms = false, defaultHome = true), 35))
+        assertTrue(isNativeOnboardingReady(NativePermissionStatus(usageAccess = true, overlayAccess = true, exactAlarms = true, defaultHome = true), 35))
     }
 
     @Test
