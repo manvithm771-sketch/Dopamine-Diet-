@@ -1488,12 +1488,6 @@ private fun WebsiteBlockContent(
                 }
             }
         }
-        item {
-            InfoCard(
-                title = if (wellbeing?.blockNsfwSites == true) "Adult-site blocking is on" else "Adult-site blocking is off",
-                body = "Adult-site blocking uses the separately saved adult-site list."
-            )
-        }
     }
 }
 
