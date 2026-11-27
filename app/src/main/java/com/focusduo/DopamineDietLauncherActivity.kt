@@ -88,7 +88,7 @@ class DopamineDietLauncherActivity : ComponentActivity() {
                     )
                     Text(
                         if (isDefaultHome) {
-                            "Your home screen. Blocked apps are hidden from this app list."
+                            "Your Home screen. Apps disappear here when their limits are reached and return when their restriction rules are removed."
                         } else {
                             "Set Dopamine Diet as your default Home app to hide blocked apps from this launcher."
                         },
