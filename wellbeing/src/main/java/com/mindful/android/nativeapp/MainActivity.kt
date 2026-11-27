@@ -328,7 +328,22 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun hasDefaultHomeRole(): Boolean =
+        getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
+
+    private fun requireDefaultHomeForAppHiding(): Boolean {
+        if (hasDefaultHomeRole()) return true
+        Toast.makeText(
+            this,
+            "Choose Dopamine Diet as your Home app first. This is required to hide blocked app icons from the Home screen.",
+            Toast.LENGTH_LONG
+        ).show()
+        requestDefaultHomeRole()
+        return false
+    }
+
     protected fun saveAppRestriction(rule: NativeAppRestrictionEntity) {
+        if (!requireDefaultHomeForAppHiding()) return
         lifecycleScope.launch {
             try {
                 database.nativeRestrictionDao().saveRestriction(rule)
@@ -388,6 +403,7 @@ open class MainActivity : ComponentActivity() {
     }
 
     protected fun saveRestrictionGroup(group: com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity) {
+        if (!requireDefaultHomeForAppHiding()) return
         lifecycleScope.launch {
             try {
                 val dao = database.nativeRestrictionDao()
