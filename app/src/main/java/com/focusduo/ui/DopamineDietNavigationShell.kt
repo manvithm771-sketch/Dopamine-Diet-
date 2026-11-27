@@ -38,6 +38,7 @@ fun DopamineDietNavigationShell(
     scroll: @Composable () -> Unit,
     screenTime: @Composable () -> Unit,
     settings: @Composable () -> Unit,
+    isFocusSessionActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
@@ -58,7 +59,8 @@ fun DopamineDietNavigationShell(
         modifier = modifier.fillMaxSize(),
         containerColor = Color(0xFF08090E),
         bottomBar = {
-            Row(
+            // Omit the complete outer navigation bar while any focus session is active.
+            if (!isFocusSessionActive) Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF10111A))
