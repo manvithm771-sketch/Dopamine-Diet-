@@ -2,7 +2,6 @@ package com.mindful.android.nativeapp
 
 import android.Manifest
 import android.app.AlarmManager
-import android.app.role.RoleManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -114,7 +113,6 @@ open class MainActivity : ComponentActivity() {
                     onRequestBatteryOptimization = { requestBatteryOptimizationExemption() },
                     onRequestAccessibility = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
                     onRequestNotifications = { requestNotificationPermission() },
-                    onRequestDefaultHome = { requestDefaultHomeRole() },
                     onFinish = { finishNativeOnboarding() }
                 )
             } else {
@@ -228,7 +226,6 @@ open class MainActivity : ComponentActivity() {
             notificationsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED,
-            defaultHome = getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
         )
     }
 
@@ -247,23 +244,6 @@ open class MainActivity : ComponentActivity() {
                 startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
             }
         }
-    }
-
-    private fun requestDefaultHomeRole() {
-        val roleManager = getSystemService(RoleManager::class.java)
-        if (roleManager == null || !roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
-            Toast.makeText(
-                this,
-                "Android does not offer the Home app role on this device.",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-        if (roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
-            refreshNativePermissionStatus()
-            return
-        }
-        startActivity(roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME))
     }
 
     private fun requestNotificationPermission() {
@@ -328,22 +308,7 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun hasDefaultHomeRole(): Boolean =
-        getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
-
-    private fun requireDefaultHomeForAppHiding(): Boolean {
-        if (hasDefaultHomeRole()) return true
-        Toast.makeText(
-            this,
-            "Choose Dopamine Diet as your Home app first. This is required to hide blocked app icons from the Home screen.",
-            Toast.LENGTH_LONG
-        ).show()
-        requestDefaultHomeRole()
-        return false
-    }
-
     protected fun saveAppRestriction(rule: NativeAppRestrictionEntity) {
-        if (!requireDefaultHomeForAppHiding()) return
         lifecycleScope.launch {
             try {
                 database.nativeRestrictionDao().saveRestriction(rule)
