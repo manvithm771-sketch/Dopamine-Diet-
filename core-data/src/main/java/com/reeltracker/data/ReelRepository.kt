@@ -1,5 +1,6 @@
 package com.reeltracker.data
 
+import com.reeltracker.model.DailyReelCount
 import com.reeltracker.model.DayStats
 import com.reeltracker.model.PeriodCounts
 import com.reeltracker.model.UsageOverview
@@ -20,6 +21,9 @@ import java.time.DayOfWeek
 class ReelRepository internal constructor(private val dao: ReelDao) {
     val todayCount: Flow<Int> = today().flatMapLatest { dao.countSince(it) }
     val lastEventAt: Flow<Long?> = dao.lastEventAt()
+
+    /** Daily totals are read from the local event log; no cloud or network storage is used. */
+    val dailyCounts: Flow<List<DailyReelCount>> = dao.dailyCounts()
 
     /** Current daily count for Android widget callers. */
     suspend fun todayCountNow(): Int = todayCount.first()
