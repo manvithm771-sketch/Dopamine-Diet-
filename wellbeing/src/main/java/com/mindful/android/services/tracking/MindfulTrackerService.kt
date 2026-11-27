@@ -18,7 +18,6 @@ import com.mindful.android.nativeapp.data.local.NativeDatabaseProvider
 import com.mindful.android.nativeapp.data.migration.NativeStartupCoordinator
 import com.mindful.android.nativeapp.restrictions.buildNativeRestrictionRules
 import com.mindful.android.nativeapp.restrictions.filterNativeRestrictionInputs
-import com.mindful.android.nativeapp.restrictions.ManagedAppSuspensionController
 import com.mindful.android.nativeapp.restrictions.protectedSystemPackageNames
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -105,9 +104,6 @@ class MindfulTrackerService : Service() {
                     protectedPackageNames = protectedSystemPackageNames(applicationContext)
                 )
                 val rules = buildNativeRestrictionRules(filtered.apps, filtered.groups)
-                ManagedAppSuspensionController(applicationContext).reconcileConfiguredPackages(
-                    rules.apps.keys + rules.groups.values.flatMap { it.distractingApps }
-                )
                 withContext(Dispatchers.Main) {
                     restrictionManager.updateRestrictions(rules.apps, rules.groups)
                 }
@@ -153,7 +149,6 @@ class MindfulTrackerService : Service() {
 
     fun onMidnightReset() {
         restrictionManager.resetCache()
-        ManagedAppSuspensionController(applicationContext).restoreAll()
         overlayManager.dismissSheetOverlay()
         val reminderAwaiting = reminderManager.cancelReminders()
 
@@ -175,20 +170,12 @@ class MindfulTrackerService : Service() {
             val currentOrFutureState = restrictionManager.isAppRestricted(packageName)
             Log.d(TAG, "processAppRestriction: $packageName evaluated => $currentOrFutureState")
 
-            if (currentOrFutureState == null || currentOrFutureState.timeLeftMillis > 0L) {
-                // A rule was removed, or the daily limit has not been reached yet.
-                ManagedAppSuspensionController(applicationContext).restorePackage(packageName)
-            } else {
-                val hiddenByDevicePolicy =
-                    ManagedAppSuspensionController(applicationContext).hidePackage(packageName)
-                if (!hiddenByDevicePolicy) {
-                    // Preserve the existing Mindful blocking experience on ordinary devices
-                    // and for packages Android refuses to suspend.
-                    overlayManager.showSheetOverlay(
-                        packageName = packageName,
-                        restrictionState = currentOrFutureState,
-                    )
-                }
+            if (currentOrFutureState != null && currentOrFutureState.timeLeftMillis <= 0L) {
+                // Keep the original Mindful overlay-based blocking behavior on ordinary devices.
+                overlayManager.showSheetOverlay(
+                    packageName = packageName,
+                    restrictionState = currentOrFutureState,
+                )
             }
         } catch (e: Exception) {
             SharedPrefsHelper.insertCrashLogToPrefs(this, e)
