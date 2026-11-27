@@ -368,7 +368,6 @@ open class MainActivity : ComponentActivity() {
     }
 
     protected fun saveRestrictionGroup(group: com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity) {
-        if (!requireDefaultHomeForAppHiding()) return
         lifecycleScope.launch {
             try {
                 val dao = database.nativeRestrictionDao()
