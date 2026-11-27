@@ -49,12 +49,11 @@ class MindfulTrackerService : Service() {
 
     override fun onCreate() {
         overlayManager = OverlayManager(this)
-        reminderManager = ReminderManager(overlayManager, ::onRestrictionTimerExpired)
+        reminderManager = ReminderManager(overlayManager, ::onNewAppLaunch)
         restrictionManager = RestrictionManager(this, ::stopIfNoUsage)
         launchTrackingManager = LaunchTrackingManager(
             context = this,
             onNewAppLaunched = ::onNewAppLaunch,
-            onCurrentAppRechecked = ::onCurrentAppRechecked,
             dismissOverlay = { overlayManager.dismissSheetOverlay() },
             cancelReminders = { reminderManager.cancelReminders() },
         )
@@ -160,30 +159,16 @@ class MindfulTrackerService : Service() {
 
     @WorkerThread
     private fun onNewAppLaunch(packageName: String) {
-        processAppRestriction(packageName, countLaunch = true)
+        processAppRestriction(packageName)
     }
 
-    @WorkerThread
-    private fun onCurrentAppRechecked(packageName: String) {
-        processAppRestriction(packageName, countLaunch = false)
-    }
-
-    @WorkerThread
-    private fun onRestrictionTimerExpired(packageName: String) {
-        processAppRestriction(packageName, countLaunch = false)
-    }
-
-    private fun processAppRestriction(packageName: String, countLaunch: Boolean) {
+    private fun processAppRestriction(packageName: String) {
         try {
             reminderManager.cancelReminders()
             overlayManager.dismissSheetOverlay()
 
-            val currentOrFutureState = if (countLaunch) {
-                restrictionManager.isAppRestricted(packageName)
-            } else {
-                restrictionManager.recheckAppRestriction(packageName)
-            }
-            Log.d(TAG, "processAppRestriction: $packageName evaluated (countLaunch=$countLaunch) => $currentOrFutureState")
+            val currentOrFutureState = restrictionManager.isAppRestricted(packageName)
+            Log.d(TAG, "processAppRestriction: $packageName evaluated => $currentOrFutureState")
 
             currentOrFutureState?.let {
                 if (it.timeLeftMillis <= 0L) {
