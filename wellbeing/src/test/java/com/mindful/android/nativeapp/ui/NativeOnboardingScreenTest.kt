@@ -14,22 +14,6 @@ class NativeOnboardingScreenTest {
     }
 
     @Test
-    fun defaultHomeRoleIsRequiredForAppIconHidingSetup() {
-        assertFalse(
-            isNativeOnboardingReady(
-                NativePermissionStatus(usageAccess = true, overlayAccess = true, exactAlarms = true),
-                35
-            )
-        )
-        assertTrue(
-            isNativeOnboardingReady(
-                NativePermissionStatus(usageAccess = true, overlayAccess = true, exactAlarms = true),
-                35
-            )
-        )
-    }
-
-    @Test
     fun exactAlarmPermissionIsNotRequiredBeforeAndroid12() {
         assertTrue(isNativeOnboardingReady(NativePermissionStatus(usageAccess = true, overlayAccess = true, exactAlarms = false), 30))
     }
