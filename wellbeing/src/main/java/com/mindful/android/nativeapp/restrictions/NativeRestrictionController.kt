@@ -109,10 +109,6 @@ internal class NativeRestrictionController(context: Context) {
             protectedPackageNames = protectedSystemPackageNames(appContext)
         )
         val rules = buildNativeRestrictionRules(filteredRows.apps, filteredRows.groups)
-        BlockedAppVisibilityStore.reconcileConfiguredPackages(
-            appContext,
-            rules.apps.keys + rules.groups.values.flatMap { it.distractingApps }
-        )
         ManagedAppSuspensionController(appContext).reconcileConfiguredPackages(
             rules.apps.keys + rules.groups.values.flatMap { it.distractingApps }
         )
