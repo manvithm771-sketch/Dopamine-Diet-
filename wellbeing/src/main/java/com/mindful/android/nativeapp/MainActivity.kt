@@ -500,7 +500,6 @@ open class MainActivity : ComponentActivity() {
     }
 
     private fun syncSavedRestrictions() {
-        if (!hasUsageAccess() || !Settings.canDrawOverlays(this)) return
         lifecycleScope.launch {
             val dashboard = database.nativeDashboardDao()
             val apps = dashboard.observeAppRestrictions().first()
