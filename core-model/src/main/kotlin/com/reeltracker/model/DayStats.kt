@@ -11,6 +11,12 @@ data class DayStats(
     }
 }
 
+/** One local calendar day's count, derived from the persisted reel event history. */
+data class DailyReelCount(
+    val day: String,
+    val total: Int,
+)
+
 /** Platform totals for one calendar period. */
 data class PeriodCounts(
     val instagramReels: Int = 0,
