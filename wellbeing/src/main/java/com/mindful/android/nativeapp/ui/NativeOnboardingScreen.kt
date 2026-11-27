@@ -38,7 +38,7 @@ internal fun isNativeOnboardingReady(
     permissions: NativePermissionStatus,
     sdkInt: Int = Build.VERSION.SDK_INT
 ): Boolean = permissions.usageAccess && permissions.overlayAccess &&
-    (sdkInt < Build.VERSION_CODES.S || permissions.exactAlarms)
+    (sdkInt < Build.VERSION_CODES.S || permissions.exactAlarms) && permissions.defaultHome
 
 @Composable
 fun NativeOnboardingScreen(
@@ -61,9 +61,9 @@ fun NativeOnboardingScreen(
                 .padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text("Set up Mindful", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("Set up Dopamine Diet", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(
-                "Grant the essential Android permissions so Mindful can measure app usage and show restriction controls. You can review or revoke these permissions later in Android Settings.",
+                "Grant the essential Android permissions and choose Dopamine Diet as your Home app so app limits can automatically hide and restore app icons. You can review these choices later in Android Settings.",
                 style = MaterialTheme.typography.bodyMedium
             )
             PermissionCard(
@@ -88,10 +88,10 @@ fun NativeOnboardingScreen(
             }
             PermissionCard(
                 title = "Default Home app",
-                description = "Choose Dopamine Diet as your Home app. Blocked apps will be hidden from the Dopamine Diet home screen. This does not hide icons from other launchers.",
+                description = "Required for automatic app-icon hiding. Choose Dopamine Diet as your Home app; apps disappear from this Home screen when their limits are reached and return when you remove their rules. Other launchers are not changed.",
                 granted = permissions.defaultHome,
                 onGrant = onRequestDefaultHome,
-                optional = true,
+                optional = false,
                 grantedLabel = "Selected",
                 actionLabel = "Choose Dopamine Diet Home"
             )
