@@ -46,6 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -101,33 +104,37 @@ fun TodayScreen(
 @Composable
 private fun PeriodPanel(title: String, counts: PeriodCounts) {
     Panel(title) {
-        PeriodLine("Instagram Reels", counts.instagramReels)
+        PlatformCountLine("com.instagram.android", counts.instagramReels)
         Spacer(Modifier.height(10.dp))
-        PeriodLine("YouTube Shorts", counts.youtubeShorts)
-        Spacer(Modifier.height(10.dp))
-        PeriodLine("Combined total", counts.total, emphasized = true)
+        PlatformCountLine("com.google.android.youtube", counts.youtubeShorts)
     }
 }
 
 @Composable
-private fun PeriodLine(label: String, count: Int, emphasized: Boolean = false) {
+private fun PlatformCountLine(packageName: String, count: Int) {
+    val context = LocalContext.current
+    val icon = remember(context, packageName) {
+        runCatching {
+            context.packageManager.getApplicationIcon(packageName).toBitmap().asImageBitmap()
+        }.getOrNull()
+    }
     val p = LocalPalette.current
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            label,
-            style = if (emphasized) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
-            color = if (emphasized) p.textPrimary else p.textSecondary,
-        )
+        if (icon != null) {
+            Image(
+                bitmap = icon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+        Spacer(Modifier.width(14.dp))
         Text(
             count.toString(),
-            style = TextStyle(
-                fontSize = if (emphasized) 22.sp else 18.sp,
-                fontWeight = FontWeight.SemiBold,
-            ),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = p.textPrimary,
         )
     }
@@ -138,8 +145,7 @@ private fun Header(now: Long, clock: Clock, tracking: Tracking, onClick: () -> U
     val p = LocalPalette.current
     Row(verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f)) {
-            Text(clock.date(now), style = MaterialTheme.typography.titleMedium, color = p.textSecondary)
-            Row(verticalAlignment = Alignment.Bottom) {
+                Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     clock.clock(now),
                     style = tnum.copy(fontSize = 34.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp),
@@ -213,38 +219,49 @@ private fun TrackingCard(tracking: Tracking, onClick: () -> Unit) {
 
 @Composable
 private fun Hero(count: Int, shortsCount: Int, lastEventAt: Long?, now: Long, clock: Clock) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 18.dp, bottom = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlatformHeroIcon("com.instagram.android", count)
+            Spacer(Modifier.width(44.dp))
+            PlatformHeroIcon("com.google.android.youtube", shortsCount)
+        }
+    }
+}
+
+@Composable
+private fun PlatformHeroIcon(packageName: String, count: Int) {
+    val context = LocalContext.current
+    val icon = remember(context, packageName) {
+        runCatching {
+            context.packageManager.getApplicationIcon(packageName).toBitmap().asImageBitmap()
+        }.getOrNull()
+    }
     val p = LocalPalette.current
-    Column(Modifier.padding(top = 18.dp, bottom = 6.dp)) {
-        Text("Reels watched today", style = MaterialTheme.typography.titleMedium, color = p.textSecondary)
-        AnimatedContent(
-            targetState = count,
-            transitionSpec = {
-                (slideInVertically { it / 2 } + fadeIn()) togetherWith (slideOutVertically { -it / 2 } + fadeOut())
-            },
-            label = "count",
-        ) { n ->
-            Text(
-                "$n",
-                style = TextStyle(
-                    fontSize = 112.sp,
-                    lineHeight = 112.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-4).sp,
-                ),
-                color = p.textPrimary,
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (icon != null) {
+            Image(
+                bitmap = icon,
+                contentDescription = null,
+                modifier = Modifier.size(54.dp),
             )
         }
-        Spacer(Modifier.height(10.dp))
         Text(
-            "Shorts watched today: $shortsCount",
-            style = MaterialTheme.typography.titleMedium,
-            color = p.textSecondary,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            lastEventAt?.let { "Last one counted ${clock.ago(it, now)}" } ?: "Nothing counted yet",
-            style = MaterialTheme.typography.bodyMedium,
-            color = p.textMuted,
+            count.toString(),
+            style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
+            color = p.textPrimary,
         )
     }
 }
