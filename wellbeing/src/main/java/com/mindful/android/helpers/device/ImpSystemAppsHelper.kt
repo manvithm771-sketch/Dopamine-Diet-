@@ -38,7 +38,29 @@ object ImpSystemAppsHelper {
         "voicenote",
         "soundrecorder",
         "recorder",
-        "weather"
+        "weather",
+        // Google productivity and developer tools requested as non-blockable.
+        "drive",
+        "sheets",
+        "spreadsheet",
+        "playconsole",
+        "vending"
+    )
+
+    private val ineligibleAppNamePhrases = setOf(
+        "google drive",
+        "google sheets",
+        "play console",
+        "google play console",
+        "google play store",
+        "play store"
+    )
+
+    private val ineligiblePackageNames = setOf(
+        "com.google.android.apps.docs",
+        "com.google.android.apps.docs.editors.sheets",
+        "com.google.android.apps.playconsole",
+        "com.android.vending"
     )
 
     /**
@@ -46,11 +68,18 @@ object ImpSystemAppsHelper {
      * visible label and package name supports different Android manufacturers.
      */
     fun isIneligibleForBlocking(appName: String, packageName: String): Boolean {
+        val normalizedName = normalizePhrase(appName)
         val nameTokens = tokenize(appName)
         val packageTokens = tokenize(packageName)
-        return ineligibleAppIdentifiers.any { identifier ->
-            identifier in nameTokens || identifier in packageTokens
-        }
+        val normalizedPackage = packageName.lowercase(Locale.ROOT)
+
+        return normalizedPackage in ineligiblePackageNames ||
+            ineligibleAppNamePhrases.any { phrase ->
+                normalizedName == phrase || normalizedName.contains(phrase)
+            } ||
+            ineligibleAppIdentifiers.any { identifier ->
+                identifier in nameTokens || identifier in packageTokens
+            }
     }
 
     /**
@@ -79,6 +108,11 @@ object ImpSystemAppsHelper {
             .split(Regex("[^a-z0-9]+"))
             .filter { it.isNotBlank() }
             .toSet()
+
+    private fun normalizePhrase(value: String): String =
+        value.lowercase(Locale.ROOT)
+            .replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
 
     private fun getDefaultLauncherPackageName(packageManager: PackageManager): String? =
         packageManager.resolveActivity(
