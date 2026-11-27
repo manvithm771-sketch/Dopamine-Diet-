@@ -147,7 +147,7 @@ internal fun buildNativeUsageRows(
         packageName = AppConstants.REMOVED_PACKAGE,
         dateEpochMillis = dayStartEpochMillis,
         mobileData = (mobileUsageKb[NetworkStats.Bucket.UID_REMOVED] ?: 0L).coerceAtLeast(0L),
-        wifiData = (wifiUsageKb[NetworkStats.Bucket.UID_REMOVED] ?: 0L).coerceAtLeast(0L)
+        wifiData = (wifiUsageKb[NetworkStats.Bucket.UID_TETHERING] ?: 0L).coerceAtLeast(0L)
     )
 
     return appRows + tethering + removed
