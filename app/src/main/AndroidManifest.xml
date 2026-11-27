@@ -7,21 +7,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DopamineDiet">
         <activity
-            android:name="com.focusduo.DopamineDietLauncherActivity"
-            android:exported="true"
-            android:label="Dopamine Diet Home"
-            android:theme="@style/Theme.DopamineDiet">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="com.dopaminediet.action.OPEN_HOME_SETUP" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-        <activity
             android:name="com.focusduo.DopamineDietActivity"
             android:exported="true"
             android:theme="@style/Theme.DopamineDiet">
