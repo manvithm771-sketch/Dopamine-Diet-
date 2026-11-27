@@ -30,7 +30,6 @@ data class NativePermissionStatus(
     val batteryOptimizationIgnored: Boolean = false,
     val accessibilityEnabled: Boolean = false,
     val notificationsAllowed: Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU,
-    val defaultHome: Boolean = false
 )
 
 /** Usage Access and overlays are always required; exact alarms are required on Android 12+. */
@@ -38,7 +37,7 @@ internal fun isNativeOnboardingReady(
     permissions: NativePermissionStatus,
     sdkInt: Int = Build.VERSION.SDK_INT
 ): Boolean = permissions.usageAccess && permissions.overlayAccess &&
-    (sdkInt < Build.VERSION_CODES.S || permissions.exactAlarms) && permissions.defaultHome
+    (sdkInt < Build.VERSION_CODES.S || permissions.exactAlarms)
 
 @Composable
 fun NativeOnboardingScreen(
@@ -49,7 +48,6 @@ fun NativeOnboardingScreen(
     onRequestBatteryOptimization: () -> Unit,
     onRequestAccessibility: () -> Unit,
     onRequestNotifications: () -> Unit,
-    onRequestDefaultHome: () -> Unit,
     onFinish: () -> Unit
 ) {
     Scaffold { padding ->
@@ -63,7 +61,7 @@ fun NativeOnboardingScreen(
         ) {
             Text("Set up Dopamine Diet", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(
-                "Grant the essential Android permissions and choose Dopamine Diet as your Home app so app limits can automatically hide and restore app icons. You can review these choices later in Android Settings.",
+                "Grant the essential Android permissions so Dopamine Diet can track usage and enforce app limits without changing your phone's Home screen.",
                 style = MaterialTheme.typography.bodyMedium
             )
             PermissionCard(
@@ -86,15 +84,6 @@ fun NativeOnboardingScreen(
                     onGrant = onRequestExactAlarm
                 )
             }
-            PermissionCard(
-                title = "Default Home app",
-                description = "Required for automatic app-icon hiding. Choose Dopamine Diet as your Home app; apps disappear from this Home screen when their limits are reached and return when you remove their rules. Other launchers are not changed.",
-                granted = permissions.defaultHome,
-                onGrant = onRequestDefaultHome,
-                optional = false,
-                grantedLabel = "Selected",
-                actionLabel = "Choose Dopamine Diet Home"
-            )
             Spacer(Modifier.height(2.dp))
             Text("Optional permissions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             PermissionCard(
