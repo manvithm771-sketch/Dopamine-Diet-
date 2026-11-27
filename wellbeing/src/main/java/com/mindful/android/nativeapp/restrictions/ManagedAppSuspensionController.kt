@@ -3,7 +3,6 @@ package com.mindful.android.nativeapp.restrictions
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
-import android.os.Build
 import android.util.Log
 import com.mindful.android.admin.DopamineDeviceAdminReceiver
 
@@ -23,26 +22,25 @@ internal class ManagedAppSuspensionController(context: Context) {
         appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     val isDeviceOwner: Boolean
-        get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
-            devicePolicyManager.isDeviceOwnerApp(appContext.packageName)
+        get() = devicePolicyManager.isDeviceOwnerApp(appContext.packageName)
 
     /**
-     * Suspends one app only when Dopamine Diet is the provisioned device owner.
-     * Returns true only when Android confirms that the package was suspended.
+     * Hides one app only when Dopamine Diet is the provisioned device owner.
+     * Returns true only when Android confirms that the package was hidden.
      */
-    fun suspendPackage(packageName: String): Boolean {
+    fun hidePackage(packageName: String): Boolean {
         if (!isEligiblePackage(packageName) || !isDeviceOwner) return false
         return runCatching {
-            val failed = devicePolicyManager.setPackagesSuspended(
+            val hidden = devicePolicyManager.setApplicationHidden(
                 adminComponent,
-                arrayOf(packageName),
+                packageName,
                 true
             )
-            if (failed.isEmpty()) {
-                rememberSuspended(packageName)
+            if (hidden) {
+                rememberHidden(packageName)
                 true
             } else {
-                Log.w(TAG, "Android refused to suspend $packageName: $failed")
+                Log.w(TAG, "Android refused to hide $packageName")
                 false
             }
         }.onFailure { error ->
@@ -56,16 +54,16 @@ internal class ManagedAppSuspensionController(context: Context) {
         val tracked = trackedPackages()
         if (packageName !in tracked) return true
         return runCatching {
-            val failed = devicePolicyManager.setPackagesSuspended(
+            val restored = devicePolicyManager.setApplicationHidden(
                 adminComponent,
-                arrayOf(packageName),
+                packageName,
                 false
             )
-            if (failed.isEmpty()) {
+            if (restored) {
                 rememberSuspended(packageName, suspended = false)
                 true
             } else {
-                Log.w(TAG, "Android refused to unsuspend $packageName: $failed")
+                Log.w(TAG, "Android refused to restore $packageName")
                 false
             }
         }.onFailure { error ->
