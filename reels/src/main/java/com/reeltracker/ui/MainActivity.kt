@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
                 val stats by vm.stats.collectAsStateWithLifecycle()
                 val usageOverview by vm.usageOverview.collectAsStateWithLifecycle()
                 val last by vm.lastEventAt.collectAsStateWithLifecycle()
+                val dailyCounts by vm.dailyCounts.collectAsStateWithLifecycle()
                 val exportMessage by vm.exportMessage.collectAsStateWithLifecycle()
 
                 var tracking by remember { mutableStateOf(trackingState(context)) }
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
                     stats = stats,
                     usageOverview = usageOverview,
                     lastEventAt = last,
+                    dailyCounts = dailyCounts,
                     tracking = tracking,
                     is24h = is24h,
                     exportMessage = exportMessage,
