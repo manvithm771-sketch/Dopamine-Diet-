@@ -53,6 +53,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.reeltracker.model.DailyReelCount
 import com.reeltracker.model.DayStats
 import com.reeltracker.model.PeriodCounts
 import com.reeltracker.model.UsageOverview
@@ -67,6 +68,7 @@ fun TodayScreen(
     stats: DayStats,
     usageOverview: UsageOverview,
     lastEventAt: Long?,
+    dailyCounts: List<DailyReelCount>,
     tracking: Tracking,
     is24h: Boolean,
     exportMessage: String?,
@@ -92,7 +94,7 @@ fun TodayScreen(
         item { Header(now, clock, tracking, onOpenAccessibility) }
         if (tracking != Tracking.On) item { TrackingCard(tracking, onOpenAccessibility) }
         item { Hero(stats.count, stats.shortsCount, lastEventAt, now, clock) }
-        item { PeriodPanel("This Week", usageOverview.thisWeek) }
+        item { WeeklyScrollChart(now, dailyCounts) }
         item { PeriodPanel("This Month", usageOverview.thisMonth) }
         item { PeriodPanel("Total", usageOverview.total) }
         item { BrainCard(stats.count, onAddWidget) }
@@ -100,6 +102,54 @@ fun TodayScreen(
     }
 }
 
+
+
+@Composable
+private fun WeeklyScrollChart(now: Long, dailyCounts: List<DailyReelCount>) {
+    val p = LocalPalette.current
+    val zone = java.time.ZoneId.systemDefault()
+    val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    val monday = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+    val countsByDay = dailyCounts.associate { it.day to it.total }
+    val days = (0..6).map { offset ->
+        val date = monday.plusDays(offset.toLong())
+        Triple(
+            date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault()),
+            date.toString(),
+            countsByDay[date.toString()] ?: 0,
+        )
+    }
+    val maxCount = days.maxOfOrNull { it.third }?.coerceAtLeast(1) ?: 1
+    Panel("This week") {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            days.forEach { (dayLabel, _, count) ->
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(count.toString(), style = MaterialTheme.typography.labelSmall, color = p.textSecondary)
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(104.dp),
+                        contentAlignment = Alignment.BottomCenter,
+                    ) {
+                        val barHeight = if (count == 0) 3.dp else (count.toFloat() / maxCount * 96f).coerceAtLeast(5f).dp
+                        Box(
+                            modifier = Modifier.fillMaxWidth(0.62f).height(barHeight)
+                                .clip(RoundedCornerShape(topStart = 7.dp, topEnd = 7.dp))
+                                .background(p.accent),
+                        )
+                    }
+                    Text(dayLabel.take(3), style = MaterialTheme.typography.labelSmall, color = p.textSecondary)
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun PeriodPanel(title: String, counts: PeriodCounts) {
