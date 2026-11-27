@@ -44,12 +44,12 @@ internal class ManagedAppSuspensionController(context: Context) {
                 false
             }
         }.onFailure { error ->
-            Log.e(TAG, "Could not suspend $packageName", error)
+            Log.e(TAG, "Could not hide $packageName", error)
         }.getOrDefault(false)
     }
 
-    /** Restores a package previously suspended by this controller. */
-    fun unsuspendPackage(packageName: String): Boolean {
+    /** Makes a package hidden by this controller available again. */
+    fun restorePackage(packageName: String): Boolean {
         if (!isDeviceOwner) return false
         val tracked = trackedPackages()
         if (packageName !in tracked) return true
@@ -60,7 +60,7 @@ internal class ManagedAppSuspensionController(context: Context) {
                 false
             )
             if (restored) {
-                rememberSuspended(packageName, suspended = false)
+                rememberHidden(packageName, hidden = false)
                 true
             } else {
                 Log.w(TAG, "Android refused to restore $packageName")
@@ -73,29 +73,29 @@ internal class ManagedAppSuspensionController(context: Context) {
 
     /**
      * Restore apps whose rules have been removed. Still-configured apps remain
-     * suspended until their restriction expires or the user removes the rule.
+     * hidden until their restriction expires or the user removes the rule.
      */
     fun reconcileConfiguredPackages(configuredPackages: Set<String>) {
         if (!isDeviceOwner) return
         trackedPackages()
             .filterNot { it in configuredPackages }
-            .forEach(::unsuspendPackage)
+            .forEach(::restorePackage)
     }
 
     /** Daily restriction reset makes previously blocked apps eligible again. */
     fun restoreAll() {
         if (!isDeviceOwner) return
-        trackedPackages().forEach(::unsuspendPackage)
+        trackedPackages().forEach(::restorePackage)
     }
 
     private fun trackedPackages(): Set<String> =
-        preferences.getStringSet(KEY_SUSPENDED_PACKAGES, emptySet())
+        preferences.getStringSet(KEY_HIDDEN_PACKAGES, emptySet())
             ?.toSet()
             ?: emptySet()
 
-    private fun rememberSuspended(packageName: String, suspended: Boolean = true) {
+    private fun rememberHidden(packageName: String, hidden: Boolean = true) {
         val updated = trackedPackages().toMutableSet()
-        if (suspended) updated.add(packageName) else updated.remove(packageName)
+        if (hidden) updated.add(packageName) else updated.remove(packageName)
         preferences.edit().putStringSet(KEY_SUSPENDED_PACKAGES, updated).apply()
     }
 
@@ -105,8 +105,8 @@ internal class ManagedAppSuspensionController(context: Context) {
             packageName !in protectedSystemPackageNames(appContext)
 
     private companion object {
-        const val TAG = "DopamineAppSuspension"
-        const val PREFERENCES_NAME = "managed_app_suspension"
+        const val TAG = "DopamineAppHiding"
+        const val PREFERENCES_NAME = "managed_app_hiding"
         const val KEY_SUSPENDED_PACKAGES = "suspended_by_dopamine_diet"
     }
 }
