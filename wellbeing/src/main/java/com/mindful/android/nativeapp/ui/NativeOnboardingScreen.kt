@@ -29,7 +29,8 @@ data class NativePermissionStatus(
     val exactAlarms: Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.S,
     val batteryOptimizationIgnored: Boolean = false,
     val accessibilityEnabled: Boolean = false,
-    val notificationsAllowed: Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+    val notificationsAllowed: Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU,
+    val defaultHome: Boolean = false
 )
 
 /** Usage Access and overlays are always required; exact alarms are required on Android 12+. */
@@ -84,6 +85,15 @@ fun NativeOnboardingScreen(
                     onGrant = onRequestExactAlarm
                 )
             }
+            PermissionCard(
+                title = "Default Home app",
+                description = "Choose Dopamine Diet as your Home app. Blocked apps will be hidden from the Dopamine Diet home screen. This does not hide icons from other launchers.",
+                granted = permissions.defaultHome,
+                onGrant = onRequestDefaultHome,
+                optional = true,
+                grantedLabel = "Selected",
+                actionLabel = "Choose Dopamine Diet Home"
+            )
             Spacer(Modifier.height(2.dp))
             Text("Optional permissions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             PermissionCard(
@@ -126,7 +136,9 @@ private fun PermissionCard(
     description: String,
     granted: Boolean,
     onGrant: () -> Unit,
-    optional: Boolean = false
+    optional: Boolean = false,
+    grantedLabel: String = "Allowed",
+    actionLabel: String = "Open Android settings"
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -135,12 +147,12 @@ private fun PermissionCard(
         ) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(title, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                Text(if (granted) "Allowed" else if (optional) "Optional" else "Required")
+                Text(if (granted) grantedLabel else if (optional) "Optional" else "Required")
             }
             Text(description, style = MaterialTheme.typography.bodySmall)
             if (!granted) {
                 OutlinedButton(onClick = onGrant, modifier = Modifier.fillMaxWidth()) {
-                    Text("Open Android settings")
+                    Text(actionLabel)
                 }
             }
         }
