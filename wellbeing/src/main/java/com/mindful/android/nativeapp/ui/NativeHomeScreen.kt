@@ -1299,9 +1299,18 @@ private fun AppsContent(
                     "Optional: hide blocked app icons"
                 },
                 body = if (managedDeviceOwner) {
-                    "Dopamine Diet is the device owner. When an app reaches its blocking limit, Android can suspend it and remove its launcher entry. Removing its rule or the daily reset restores it."
+                    "Dopamine Diet has managed-device access. When an app reaches its blocking limit, Android can hide it from the device launcher. Removing its rule or the daily reset restores it."
                 } else {
-                    "This advanced mode requires Dopamine Diet to be provisioned as the device owner. It is not a normal permission prompt and may require a factory reset. Back up the phone first. After installing on a freshly reset device, provision with: adb shell dpm set-device-owner com.dopaminediet/com.mindful.android.admin.DopamineDeviceAdminReceiver"
+                    "Set Dopamine Diet Home as your default Home app. Blocked apps will disappear from its app grid and return when unblocked. Android does not let ordinary apps remove icons from another manufacturer's launcher; the existing blocker still protects launches outside Dopamine Diet Home."
+                },
+                actionLabel = if (managedDeviceOwner) null else "Set up Dopamine Diet Home",
+                onAction = if (managedDeviceOwner) null else {
+                    {
+                        context.startActivity(
+                            Intent("com.dopaminediet.action.OPEN_HOME_SETUP")
+                                .setPackage(context.packageName)
+                        )
+                    }
                 }
             )
         }
@@ -2016,12 +2025,21 @@ private fun MetricCard(
 }
 
 @Composable
-private fun InfoCard(title: String, body: String) {
+private fun InfoCard(
+    title: String,
+    body: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
     Card(shape = RoundedCornerShape(20.dp)) {
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (actionLabel != null && onAction != null) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onAction) { Text(actionLabel) }
+            }
         }
     }
 }
