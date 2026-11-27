@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.reeltracker.model.DailyReelCount
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -26,6 +27,16 @@ interface ReelDao {
 
     @Query("SELECT COUNT(*) FROM reel_events WHERE strategyId = :youtubeStrategy")
     fun youtubeShortsTotalCount(youtubeStrategy: String): Flow<Int>
+
+    /** All recorded days since installation, grouped using the device's local calendar. */
+    @Query("""
+        SELECT strftime('%Y-%m-%d', wallClock / 1000, 'unixepoch', 'localtime') AS day,
+               COUNT(*) AS total
+        FROM reel_events
+        GROUP BY strftime('%Y-%m-%d', wallClock / 1000, 'unixepoch', 'localtime')
+        ORDER BY day ASC
+    """)
+    fun dailyCounts(): Flow<List<DailyReelCount>>
 
     @Query("SELECT MAX(wallClock) FROM reel_events")
     fun lastEventAt(): Flow<Long?>
