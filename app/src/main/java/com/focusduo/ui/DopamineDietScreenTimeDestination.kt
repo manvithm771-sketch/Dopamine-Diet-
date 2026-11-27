@@ -91,6 +91,14 @@ fun DopamineDietScreenTimeDestination(
     var showInsights by remember { mutableStateOf(false) }
     var showAllApps by remember { mutableStateOf(false) }
 
+    if (openedBlockingTool == "phone") {
+        PhoneBlockScreen(
+            onBack = { openedBlockingTool = null },
+            onBlockFinished = { openedBlockingTool = null }
+        )
+        return
+    }
+
     if (openedBlockingTool != null) {
         NativeHomeScreen(
             dao = database.nativeDashboardDao(),
@@ -278,6 +286,14 @@ fun DopamineDietScreenTimeDestination(
                 title = "Website Blocking",
                 description = "Manage blocked websites, adult-site rules and short-form content restrictions.",
                 onClick = { openedBlockingTool = "websites" }
+            )
+        }
+
+        item {
+            BlockingActionCard(
+                title = "Phone Blocking",
+                description = "Start a full-screen break timer with an emergency exit.",
+                onClick = { openedBlockingTool = "phone" }
             )
         }
 
