@@ -63,7 +63,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.mindful.android.enums.PlatformFeatures
 import com.mindful.android.helpers.device.ImpSystemAppsHelper
 import com.mindful.android.nativeapp.restrictions.protectedSystemPackageNames
-import com.mindful.android.nativeapp.restrictions.ManagedAppSuspensionController
 import com.mindful.android.nativeapp.data.local.NativeDashboardDao
 import com.mindful.android.nativeapp.data.local.NativeAppUsageSummary
 import com.mindful.android.nativeapp.data.local.NativeDailyUsageSummary
@@ -1280,7 +1279,6 @@ private fun AppsContent(
     onSaveWellbeing: (NativeWellbeingEntity) -> Unit
 ) {
     val context = LocalContext.current
-    val managedDeviceOwner = ManagedAppSuspensionController(context).isDeviceOwner
     val installedApps = remember(context) { loadRestrictableLaunchableApps(context) }
     val restrictionsByPackage = remember(restrictions) {
         restrictions.associateBy { it.appPackage }
@@ -1298,29 +1296,6 @@ private fun AppsContent(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item {
-            InfoCard(
-                title = if (managedDeviceOwner) {
-                    "App icon hiding is enabled"
-                } else {
-                    "Optional: hide blocked app icons"
-                },
-                body = if (managedDeviceOwner) {
-                    "Dopamine Diet has managed-device access. When an app reaches its blocking limit, Android can hide it from the device launcher. Removing its rule or the daily reset restores it."
-                } else {
-                    "Set Dopamine Diet Home as your default Home app. Blocked apps will disappear from its app grid and return when unblocked. Android does not let ordinary apps remove icons from another manufacturer's launcher; the existing blocker still protects launches outside Dopamine Diet Home."
-                },
-                actionLabel = if (managedDeviceOwner) null else "Set up Dopamine Diet Home",
-                onAction = if (managedDeviceOwner) null else {
-                    {
-                        context.startActivity(
-                            Intent("com.dopaminediet.action.OPEN_HOME_SETUP")
-                                .setPackage(context.packageName)
-                        )
-                    }
-                }
-            )
-        }
         if (restrictions.isEmpty()) {
             item {
                 InfoCard(
