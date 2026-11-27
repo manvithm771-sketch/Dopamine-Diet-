@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.reeltracker.data.ReelGraph
+import com.reeltracker.model.DailyReelCount
 import com.reeltracker.model.DayStats
 import com.reeltracker.model.UsageOverview
 import com.reeltracker.service.ReelServiceState
@@ -33,6 +34,9 @@ class TodayViewModel(app: Application) : AndroidViewModel(app) {
 
     val lastEventAt: StateFlow<Long?> =
         repo.lastEventAt.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val dailyCounts: StateFlow<List<DailyReelCount>> =
+        repo.dailyCounts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _exportMessage = MutableStateFlow<String?>(null)
     val exportMessage = _exportMessage.asStateFlow()
