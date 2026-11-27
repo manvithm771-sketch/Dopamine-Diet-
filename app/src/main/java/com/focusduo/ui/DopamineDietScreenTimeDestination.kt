@@ -122,18 +122,18 @@ fun DopamineDietScreenTimeDestination(
             (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -daysAgo) }.timeInMillis
         })
     }
-    val usage by database.nativeDashboardDao()
-        .observeUsageForRange(historyRange.first, historyRange.second, queryExcludedPackages)
-        .collectAsState(initial = emptyList())
-    val daily by database.nativeDashboardDao()
-        .observeDailyUsageRange(historyRange.first, historyRange.second, queryExcludedPackages)
-        .collectAsState(initial = emptyList())
     // Room expands collection parameters inside NOT IN (...). Keep the
     // collection non-empty when no packages are excluded so SQLite does not
     // evaluate NOT IN (NULL) and accidentally hide every app.
     val queryExcludedPackages = remember(excludedPackages) {
         excludedPackages.toList().ifEmpty { listOf("__mindful_no_excluded_package__") }
     }
+    val usage by database.nativeDashboardDao()
+        .observeUsageForRange(historyRange.first, historyRange.second, queryExcludedPackages)
+        .collectAsState(initial = emptyList())
+    val daily by database.nativeDashboardDao()
+        .observeDailyUsageRange(historyRange.first, historyRange.second, queryExcludedPackages)
+        .collectAsState(initial = emptyList())
     val visibleUsage = remember(usage, excludedPackages) {
         usage.filterNot { it.packageName in excludedPackages }
     }
