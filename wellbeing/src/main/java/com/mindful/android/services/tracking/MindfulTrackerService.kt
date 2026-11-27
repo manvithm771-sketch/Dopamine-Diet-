@@ -19,6 +19,7 @@ import com.mindful.android.nativeapp.data.migration.NativeStartupCoordinator
 import com.mindful.android.nativeapp.restrictions.buildNativeRestrictionRules
 import com.mindful.android.nativeapp.restrictions.filterNativeRestrictionInputs
 import com.mindful.android.nativeapp.restrictions.ManagedAppSuspensionController
+import com.mindful.android.nativeapp.restrictions.BlockedAppVisibilityStore
 import com.mindful.android.nativeapp.restrictions.protectedSystemPackageNames
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -154,6 +155,7 @@ class MindfulTrackerService : Service() {
     fun onMidnightReset() {
         restrictionManager.resetCache()
         ManagedAppSuspensionController(applicationContext).restoreAll()
+        BlockedAppVisibilityStore.clear(applicationContext)
         overlayManager.dismissSheetOverlay()
         val reminderAwaiting = reminderManager.cancelReminders()
 
@@ -177,8 +179,10 @@ class MindfulTrackerService : Service() {
 
             if (currentOrFutureState == null || currentOrFutureState.timeLeftMillis > 0L) {
                 // A rule was removed, or the daily limit has not been reached yet.
+                BlockedAppVisibilityStore.markUnblocked(applicationContext, packageName)
                 ManagedAppSuspensionController(applicationContext).restorePackage(packageName)
             } else {
+                BlockedAppVisibilityStore.markBlocked(applicationContext, packageName)
                 val hiddenByDevicePolicy =
                     ManagedAppSuspensionController(applicationContext).hidePackage(packageName)
                 if (!hiddenByDevicePolicy) {
