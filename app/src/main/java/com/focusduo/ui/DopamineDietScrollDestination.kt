@@ -129,14 +129,13 @@ fun DopamineDietScrollDestination() {
                     Image(
                         painter = painterResource(id = BrainRot.sprite(BrainRot.stage(totalToday))),
                         contentDescription = "Brain status: ${BrainRot.label(BrainRot.stage(totalToday))}",
-                        modifier = Modifier.size(width = 76.dp, height = 64.dp)
+                        modifier = Modifier.size(width = 148.dp, height = 124.dp)
                     )
                     Text("$totalToday", color = ScrollText, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                     Text("Reels + Shorts", color = ScrollMuted, style = MaterialTheme.typography.labelMedium)
                 }
                 Spacer(Modifier.height(13.dp))
                 Text(date, color = ScrollMuted, style = MaterialTheme.typography.bodyMedium)
-                Text("Your scrolling activity today", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
         }
         item {
@@ -168,17 +167,6 @@ fun DopamineDietScrollDestination() {
                             Text("Open Accessibility settings")
                         }
                     }
-                }
-            }
-        }
-        item {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = ScrollCard)) {
-                Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Your activity", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    ScrollCountRow("Today", totalToday)
-                    ScrollCountRow("This week", usageOverview.thisWeek.total)
-                    ScrollCountRow("This month", usageOverview.thisMonth.total)
-                    ScrollCountRow("Total", usageOverview.total.total)
                 }
             }
         }
