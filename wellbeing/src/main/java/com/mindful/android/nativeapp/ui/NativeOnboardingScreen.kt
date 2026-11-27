@@ -49,6 +49,7 @@ fun NativeOnboardingScreen(
     onRequestBatteryOptimization: () -> Unit,
     onRequestAccessibility: () -> Unit,
     onRequestNotifications: () -> Unit,
+    onRequestDefaultHome: () -> Unit,
     onFinish: () -> Unit
 ) {
     Scaffold { padding ->
