@@ -9,13 +9,10 @@ import java.util.concurrent.TimeUnit
 
 class ReminderManager(
     private val overlayManager: OverlayManager,
-    private val onRestrictionTimerExpired: (packageName: String) -> Unit,
+    private val onNewAppLaunched: (packageName: String) -> Unit,
 ) {
     private val TAG = "Mindful.ReminderManager"
     private val triggerInterval = 10L
-    // Recheck the active app limit every second so the full-screen restriction
-    // overlay is presented immediately when the configured limit expires.
-    private val expiryCheckIntervalMs = 1_000L
     private val reminderTriggers: HashSet<Int> = HashSet(0)
     private var activeTimer: PreciseCountDownExecutor? = null
 
@@ -48,7 +45,7 @@ class ReminderManager(
         // Set timer for expiration
         activeTimer = PreciseCountDownExecutor(
             duration = state.timeLeftMillis,
-            interval = expiryCheckIntervalMs,
+            interval = 60000L,
             timeUnit = TimeUnit.MILLISECONDS,
             onTick = { elapsedMs ->
                 val elapsedMinutes = (elapsedMs / 60000L).toInt()
@@ -73,7 +70,7 @@ class ReminderManager(
 
             onFinish = {
                 Log.d(TAG, "onFinish: Timer finished for $packageName")
-                onRestrictionTimerExpired.invoke(packageName)
+                onNewAppLaunched.invoke(packageName)
             }
         ).also { it.start() }
 
