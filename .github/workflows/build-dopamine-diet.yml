@@ -10,7 +10,7 @@ on:
       - "gradlew"
       - ".github/workflows/build-dopamine-diet.yml"
   push:
-    branches: [main]
+    branches: [main, ui/opal-inspired-redesign]
     paths:
       - "**/*.kt"
       - "**/*.kts"
