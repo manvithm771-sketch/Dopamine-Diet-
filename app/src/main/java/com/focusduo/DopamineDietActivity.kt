@@ -3,6 +3,8 @@ package com.focusduo
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import com.focusduo.ui.DopamineDietHabitsDestination
 import com.focusduo.ui.DopamineDietNavigationShell
@@ -23,6 +25,8 @@ class DopamineDietActivity : MindfulHostActivity() {
 
     @Composable
     override fun MainContent() {
+        val activeFocusSession by database.nativeFocusDao()
+            .observeActiveSession().collectAsState(initial = null)
         val background = Color(0xFF08090E)
         val surface = Color(0xFF171923)
         val violet = Color(0xFFAA83FF)
@@ -39,6 +43,7 @@ class DopamineDietActivity : MindfulHostActivity() {
             )
         ) {
             DopamineDietNavigationShell(
+                isFocusSessionActive = activeFocusSession != null,
                 habits = { DopamineDietHabitsDestination() },
                 scroll = { DopamineDietScrollDestination() },
                 screenTime = {
