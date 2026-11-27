@@ -61,6 +61,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mindful.android.enums.PlatformFeatures
+import com.mindful.android.helpers.device.ImpSystemAppsHelper
 import com.mindful.android.nativeapp.restrictions.protectedSystemPackageNames
 import com.mindful.android.nativeapp.restrictions.ManagedAppSuspensionController
 import com.mindful.android.nativeapp.data.local.NativeDashboardDao
@@ -1025,10 +1026,16 @@ private fun loadRestrictableLaunchableApps(context: Context): List<NativeLauncha
     return packageManager.queryIntentActivities(launcherIntent, 0)
         .mapNotNull { resolveInfo ->
             val info = resolveInfo.activityInfo ?: return@mapNotNull null
+            val label = resolveInfo.loadLabel(packageManager).toString()
+            if (info.packageName in protectedPackages ||
+                ImpSystemAppsHelper.isIneligibleForBlocking(label, info.packageName)
+            ) {
+                return@mapNotNull null
+            }
             NativeLaunchableApp(
                 packageName = info.packageName,
-                label = resolveInfo.loadLabel(packageManager).toString(),
-                isImportantSystemApp = info.packageName in protectedPackages
+                label = label,
+                isImportantSystemApp = false
             )
         }
         .distinctBy { it.packageName }
