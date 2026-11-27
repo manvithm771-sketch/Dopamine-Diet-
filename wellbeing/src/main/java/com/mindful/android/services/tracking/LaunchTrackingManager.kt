@@ -19,14 +19,13 @@ import java.util.concurrent.TimeUnit
 class LaunchTrackingManager(
     private val context: Context,
     private val onNewAppLaunched: (packageName: String) -> Unit,
-    private val onCurrentAppRechecked: (packageName: String) -> Unit,
     private val dismissOverlay: () -> Unit,
     private val cancelReminders: () -> Unit,
 ) {
     companion object {
         private const val TAG = "Mindful.LaunchTrackingManager"
 
-        // Keep the original Mindful foreground-detection cadence.
+        // Interval for tracking app launches in milliseconds
         private const val TIMER_RATE: Long = 750
     }
 
@@ -49,22 +48,30 @@ class LaunchTrackingManager(
 
     private var lastUsageQueryTimestamp = System.currentTimeMillis()
     private var lastLaunchedApp = ""
-    // Keep the same package-level foreground event tracking used by the original Mindful app.
-    private val activeApps = mutableListOf<String>()
+    private var activeApps = mutableListOf<String>()
 
     init {
+        // Register receivers
         lockUnlockReceiver.register(context)
         accessibilityReceiver.register(context)
+
+        // Start tracking
         onDeviceUnlocked()
     }
 
+
     @WorkerThread
     private fun onDeviceUnlocked() {
+        // Check if accessibility is already running
         isManualTrackingOn =
             !Utils.isServiceRunning(context, MindfulAccessibilityService::class.java)
 
+        // Start tracking manually only if accessibility is not running
         if (isManualTrackingOn) {
+            // First cancel earlier task if already not cancelled
             periodicTaskHandle?.cancel(true)
+
+            // Schedule new task
             periodicTaskHandle = executorService.scheduleWithFixedDelay(
                 { findLaunchedApp() },
                 0L,
@@ -74,24 +81,27 @@ class LaunchTrackingManager(
         }
 
         Log.d(TAG, "onDeviceUnlocked: Usage tracking started (isManual=$isManualTrackingOn)")
-        executorService.submit { recheckCurrentApp(lastLaunchedApp) }
+        executorService.submit { invokeNewAppLaunched(lastLaunchedApp) }
     }
 
     @WorkerThread
     private fun onDeviceLocked() {
         periodicTaskHandle?.cancel(true)
         periodicTaskHandle = null
+
+        // Cancel reminders and remove overlay
         cancelReminders.invoke()
         dismissOverlay.invoke()
         Log.d(TAG, "onDeviceLocked: Usage tracking stopped")
     }
 
     /**
-     * Detect foreground app transitions using the same UsageEvents logic as Mindful.
-     * @param msInPastFromLastCheck past milliseconds to include in the query
+     * Detect if any app is opened using usage states.
+     * @param msInPastFromLastCheck  past millis from the last check
      */
     @WorkerThread
     private fun findLaunchedApp(msInPastFromLastCheck: Long = 0L) {
+        // Initialize usage states manager
         if (usageStatsManager == null) {
             usageStatsManager =
                 context.getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
@@ -104,57 +114,69 @@ class LaunchTrackingManager(
         val usageEvents = usageStatsManager?.queryEvents(start, timeNow)
         usageEvents?.let {
             val currentEvent = UsageEvents.Event()
+
             while (it.hasNextEvent()) {
                 it.getNextEvent(currentEvent)
-                val packageName = currentEvent.packageName ?: continue
+
+                val packageName = currentEvent.packageName
                 when (currentEvent.eventType) {
-                    UsageEvents.Event.ACTIVITY_RESUMED -> activeApps.add(packageName)
+                    UsageEvents.Event.ACTIVITY_RESUMED,
+                        -> activeApps.add(packageName)
+
                     UsageEvents.Event.ACTIVITY_PAUSED,
-                    UsageEvents.Event.ACTIVITY_STOPPED -> activeApps.remove(packageName)
-                    else -> Unit
+                    UsageEvents.Event.ACTIVITY_STOPPED,
+                        -> activeApps.remove(packageName)
+
+                    else -> {}
                 }
             }
         }
 
-        activeApps.firstOrNull()?.let { packageName ->
-            if (lastLaunchedApp == packageName) return
-            invokeNewAppLaunched(packageName)
+        activeApps.firstOrNull()?.let {
+            if (lastLaunchedApp == it) return
+            invokeNewAppLaunched(it)
         }
-        Log.d(TAG, "findLaunchedApp: Opened app:$lastLaunchedApp Active apps: $activeApps")
+        Log.d(TAG, "findLaunchedApp: Opened app:$lastLaunchedApp Active apps: $activeApps ")
     }
 
-    /** Counts a genuine foreground transition as a launch. */
+    /**
+     * Check and Invoke method when new app is launched and tracking is not paused.
+     */
     private fun invokeNewAppLaunched(packageName: String) {
         lastLaunchedApp = packageName
         if (isTrackingPaused || packageName.isEmpty()) return
+
         onNewAppLaunched.invoke(packageName)
     }
 
-    /** Re-evaluates the current app without incrementing its launch counter. */
-    private fun recheckCurrentApp(packageName: String) {
-        if (isTrackingPaused || packageName.isEmpty()) return
-        onCurrentAppRechecked.invoke(packageName)
-    }
+    fun reInvokeLastLaunchEvent() = invokeNewAppLaunched(lastLaunchedApp)
 
-    fun reInvokeLastLaunchEvent() {
-        // Service rule updates can arrive on the main thread; keep UsageStats queries off it.
-        executorService.submit { recheckCurrentApp(lastLaunchedApp) }
-    }
-
+    /**
+     * Pauses or resumes app launch tracking.
+     *
+     * @param shouldPause True to pause tracking, false to resume.
+     */
     fun pauseResumeTracking(shouldPause: Boolean) {
         isTrackingPaused = shouldPause
-        if (!shouldPause) recheckCurrentApp(lastLaunchedApp)
+        if (!shouldPause) invokeNewAppLaunched(lastLaunchedApp)
     }
 
+    /**
+     * Detect if any app is opened in last 6 hours and it is still active.
+     * Show overlay if that app is marked as distracting bedtime app.
+     */
     fun detectActiveAppForBedtime() {
         findLaunchedApp(6 * 60 * 60 * 1000)
     }
 
     fun dispose() {
+        // Un-Register receivers
         lockUnlockReceiver.unRegister(context)
         accessibilityReceiver.unRegister(context)
+
         periodicTaskHandle?.cancel(true)
         executorService.shutdownNow()
+
         onDeviceLocked()
     }
 }
