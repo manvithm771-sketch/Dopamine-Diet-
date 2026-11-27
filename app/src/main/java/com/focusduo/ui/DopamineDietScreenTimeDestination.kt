@@ -232,7 +232,7 @@ fun DopamineDietScreenTimeDestination(
                 }
             }
         } else {
-            items(visibleTodayApps.sortedByDescending { it.totalScreenTime }.take(5).size) { index ->
+            items(visibleTodayApps.sortedByDescending { it.totalScreenTime }.size) { index ->
                 val app = visibleTodayApps.sortedByDescending { it.totalScreenTime }[index]
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     AndroidView(
@@ -307,7 +307,7 @@ fun DopamineDietScreenTimeDestination(
                 }
             }
         } else {
-            items(appRows.take(5).size) { index ->
+            items(appRows.size) { index ->
                 val app = appRows[index]
                 val label = remember(app.packageName) { appDisplayName(context.packageManager, app.packageName) }
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -337,20 +337,7 @@ fun DopamineDietScreenTimeDestination(
             }
         }
 
-        if (appRows.size > 5) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                        .clickable { showAllApps = true }
-                        .padding(vertical = 13.dp, horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text("More", color = TimeText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text("  ›", color = TimeMuted, style = MaterialTheme.typography.titleMedium)
-                }
-            }
-        }
+    }
     }
 }
 
