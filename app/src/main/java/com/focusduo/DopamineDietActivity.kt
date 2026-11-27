@@ -3,6 +3,8 @@ package com.focusduo
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import com.focusduo.ui.DopamineDietHabitsDestination
 import com.focusduo.ui.DopamineDietNavigationShell
@@ -23,14 +25,16 @@ class DopamineDietActivity : MindfulHostActivity() {
 
     @Composable
     override fun MainContent() {
-        val background = Color(0xFF09090D)
-        val surface = Color(0xFF17171F)
-        val violet = Color(0xFFB69AFF)
+        val activeFocusSession by database.nativeFocusDao()
+            .observeActiveSession().collectAsState(initial = null)
+        val background = Color(0xFF08090E)
+        val surface = Color(0xFF171923)
+        val violet = Color(0xFFAA83FF)
 
         MaterialTheme(
             colorScheme = darkColorScheme(
                 primary = violet,
-                secondary = Color(0xFFD3C2FF),
+                secondary = Color(0xFF4D9DFF),
                 background = background,
                 surface = surface,
                 onPrimary = Color(0xFF17121F),
@@ -39,9 +43,19 @@ class DopamineDietActivity : MindfulHostActivity() {
             )
         ) {
             DopamineDietNavigationShell(
+                isFocusSessionActive = activeFocusSession != null,
                 habits = { DopamineDietHabitsDestination() },
                 scroll = { DopamineDietScrollDestination() },
-                screenTime = { DopamineDietScreenTimeDestination() },
+                screenTime = {
+                    DopamineDietScreenTimeDestination(
+                        onSaveAppRestriction = ::saveAppRestriction,
+                        onDeleteAppRestriction = ::deleteAppRestriction,
+                        onSaveRestrictionGroup = ::saveRestrictionGroup,
+                        onDeleteRestrictionGroup = ::deleteRestrictionGroup,
+                        onSaveWellbeing = ::saveWellbeing,
+                        onRefreshUsage = { refreshTodayUsage(showResult = false) }
+                    )
+                },
                 settings = {
                     DopamineDietSettingsDestination(
                         database = database,

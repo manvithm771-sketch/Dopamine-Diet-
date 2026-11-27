@@ -45,7 +45,7 @@ class NativeUsageRepositoryTest {
     }
 
     @Test
-    fun keepsTetheringAndRemovedNetworkBucketsSeparate() {
+    fun matchesMindfulSyntheticNetworkBucketMapping() {
         val rows = buildNativeUsageRows(
             dayStartEpochMillis = 1_000L,
             launchableApps = emptyList(),
@@ -65,7 +65,7 @@ class NativeUsageRepositoryTest {
         assertEquals(11L, tethering.mobileData)
         assertEquals(33L, tethering.wifiData)
         assertEquals(22L, removed.mobileData)
-        assertEquals(44L, removed.wifiData)
+        assertEquals(33L, removed.wifiData)
     }
 
     @Test

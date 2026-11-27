@@ -40,7 +40,8 @@ internal class NativeUsageRepository(
 
     suspend fun refreshDay(
         dayStartEpochMillis: Long,
-        endEpochMillis: Long = System.currentTimeMillis()
+        endEpochMillis: Long = System.currentTimeMillis(),
+        replaceExisting: Boolean = true
     ): NativeUsageRefreshResult = withContext(Dispatchers.IO) {
         require(dayStartEpochMillis >= 0L) { "Day start must be a valid epoch timestamp." }
         require(endEpochMillis > dayStartEpochMillis) { "Usage interval must have a positive duration." }
@@ -54,23 +55,21 @@ internal class NativeUsageRepository(
             Context.NETWORK_STATS_SERVICE
         ) as NetworkStatsManager
 
+        // Use the same UsageEvents interval calculation as Mindful.
         val screenUsage = ScreenUsageHelper.fetchUsageForInterval(
             usageStatsManager,
             dayStartEpochMillis,
-            endEpochMillis,
-            strict = true
+            endEpochMillis
         )
         val mobileUsage = NetworkUsageHelper.fetchMobileUsageForInterval(
             networkStatsManager,
             dayStartEpochMillis,
-            endEpochMillis,
-            strict = true
+            endEpochMillis
         )
         val wifiUsage = NetworkUsageHelper.fetchWifiUsageForInterval(
             networkStatsManager,
             dayStartEpochMillis,
-            endEpochMillis,
-            strict = true
+            endEpochMillis
         )
 
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -92,7 +91,13 @@ internal class NativeUsageRepository(
             mobileUsageKb = mobileUsage,
             wifiUsageKb = wifiUsage
         )
-        usageDao.replaceDay(dayStartEpochMillis, rows)
+        // Mindful's historical population inserts/replaces only returned package-day
+        // records; it does not clear the whole date before inserting the batch.
+        if (replaceExisting) {
+            usageDao.replaceDay(dayStartEpochMillis, rows)
+        } else {
+            usageDao.insertAll(rows)
+        }
         NativeUsageRefreshResult.Updated(rows.size)
     }
 
@@ -142,7 +147,7 @@ internal fun buildNativeUsageRows(
         packageName = AppConstants.REMOVED_PACKAGE,
         dateEpochMillis = dayStartEpochMillis,
         mobileData = (mobileUsageKb[NetworkStats.Bucket.UID_REMOVED] ?: 0L).coerceAtLeast(0L),
-        wifiData = (wifiUsageKb[NetworkStats.Bucket.UID_REMOVED] ?: 0L).coerceAtLeast(0L)
+        wifiData = (wifiUsageKb[NetworkStats.Bucket.UID_TETHERING] ?: 0L).coerceAtLeast(0L)
     )
 
     return appRows + tethering + removed

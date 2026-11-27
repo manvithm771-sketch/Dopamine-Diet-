@@ -10,7 +10,7 @@ on:
       - "gradlew"
       - ".github/workflows/build-dopamine-diet.yml"
   push:
-    branches: [main]
+    branches: [main, ui/opal-inspired-redesign]
     paths:
       - "**/*.kt"
       - "**/*.kts"
@@ -37,6 +37,8 @@ jobs:
           cache: gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+      - name: Test app blocking enforcement
+        run: ./gradlew :wellbeing:testDebugUnitTest --stacktrace --console=plain
       - name: Build unified debug APK
         run: ./gradlew :app:assembleDebug --stacktrace --console=plain
       - name: Verify generated APK

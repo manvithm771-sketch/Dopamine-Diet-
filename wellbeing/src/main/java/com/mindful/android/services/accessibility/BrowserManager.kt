@@ -27,7 +27,7 @@ class BrowserManager(
 
 
     /**
-     * Blocks access to websites based on current settings.
+     * Blocks access to websites and short-form content based on current settings.
      *
      * @param node        The AccessibilityNodeInfo of the current view.
      * @param packageName The package name of the app.
@@ -57,7 +57,7 @@ class BrowserManager(
                 blockedContentGoBack.invoke()
             }
 
-            // Track selected short-form surfaces in browsers using the same daily allowance.
+            // Block short form content
             shortsPlatformManager.checkAndBlockShortsOnBrowser(wellbeing, url) -> return
 
             // Activate safe search if NSFW is blocked

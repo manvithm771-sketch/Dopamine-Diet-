@@ -4,7 +4,7 @@ import com.mindful.android.utils.JsonUtils
 import org.json.JSONObject
 
 /**
- * Represents a group of restricted apps with shared usage timer settings.
+ * Represents a group of restricted apps with shared usage settings like timers and active periods.
  */
 data class RestrictionGroup(
     /**
@@ -23,6 +23,16 @@ data class RestrictionGroup(
     val timerSec: Int = 0,
 
     /**
+     * Time of day (in minutes) from midnight when the app usage is allowed to start.
+     */
+    val activePeriodStart: Int = 0,
+
+    /**
+     * Time of day (in minutes) from midnight when the app usage is blocked.
+     */
+    val activePeriodEnd: Int = 0,
+
+    /**
      * Set of app package names associated with this group.
      */
     val distractingApps: Set<String> = emptySet(),
@@ -38,6 +48,8 @@ data class RestrictionGroup(
                 id = jsonObject.optInt("id", 0),
                 groupName = jsonObject.optString("groupName", "Social"),
                 timerSec = jsonObject.optInt("timerSec", 0),
+                activePeriodStart = jsonObject.optInt("activePeriodStart", 0),
+                activePeriodEnd = jsonObject.optInt("activePeriodEnd", 0),
                 distractingApps = JsonUtils.parseStringSet(
                     jsonObject.optJSONArray("distractingApps")?.toString()
                 )

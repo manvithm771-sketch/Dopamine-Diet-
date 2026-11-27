@@ -4,6 +4,7 @@ import com.mindful.android.R
 
 import android.content.Context
 import android.content.Intent
+import android.widget.ImageView
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
@@ -57,7 +59,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.mindful.android.enums.PlatformFeatures
+import com.mindful.android.helpers.device.ImpSystemAppsHelper
 import com.mindful.android.nativeapp.restrictions.protectedSystemPackageNames
 import com.mindful.android.nativeapp.data.local.NativeDashboardDao
 import com.mindful.android.nativeapp.data.local.NativeAppUsageSummary
@@ -65,7 +69,6 @@ import com.mindful.android.nativeapp.data.local.NativeDailyUsageSummary
 import com.mindful.android.nativeapp.data.local.NativeFocusDao
 import com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeAppRestrictionEntity
-import com.mindful.android.nativeapp.data.local.entity.NativeAppUsageEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeWellbeingEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeFocusProfileEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeFocusSessionEntity
@@ -102,6 +105,7 @@ fun NativeHomeScreen(
     startOnStatistics: Boolean = false,
     startOnFocus: Boolean = false,
     startOnApps: Boolean = false,
+    startOnWebsiteBlock: Boolean = false,
     showInternalNavigation: Boolean = true,
     onStandaloneBack: (() -> Unit)? = null,
     forceDopamineDietTheme: Boolean = false,
@@ -155,6 +159,21 @@ fun NativeHomeScreen(
     ).collectAsState(initial = emptyList())
     val weeklyUsage by dao.observeDailyUsageRange(weekRange.first, weekRange.second)
         .collectAsState(initial = emptyList())
+    val yearRange = remember {
+        val start = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            val daysSinceMonday = (get(Calendar.DAY_OF_WEEK) + 5) % 7
+            add(Calendar.DAY_OF_YEAR, -daysSinceMonday)
+            add(Calendar.WEEK_OF_YEAR, -51)
+        }
+        val end = (start.clone() as Calendar).apply { add(Calendar.WEEK_OF_YEAR, 52) }
+        start.timeInMillis to end.timeInMillis
+    }
+    val yearlyUsage by dao.observeDailyUsageRange(yearRange.first, yearRange.second)
+        .collectAsState(initial = emptyList())
     val focusMode by dao.observeFocusMode().collectAsState(initial = null)
     val focusProfiles by dao.observeFocusProfiles().collectAsState(initial = emptyList())
     val focusSessions by dao.observeFocusSessions(todayRange.first, todayRange.second)
@@ -169,7 +188,7 @@ fun NativeHomeScreen(
             when {
                 startOnStatistics -> NativeTab.STATISTICS
                 startOnFocus -> NativeTab.FOCUS
-                startOnApps -> NativeTab.APPS
+                startOnApps || startOnWebsiteBlock -> NativeTab.APPS
                 else -> NativeTab.DASHBOARD
             }
         )
@@ -185,16 +204,19 @@ fun NativeHomeScreen(
         Scaffold(
             modifier = modifier.fillMaxSize(),
             topBar = {
-                if (selectedTab != NativeTab.DASHBOARD) {
+                // Hide the app header for the entire duration of an active focus session.
+                if (activeFocusSession == null && selectedTab != NativeTab.DASHBOARD) {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-                        if (!showInternalNavigation && onStandaloneBack != null) {
-                            TextButton(onClick = onStandaloneBack) { Text("Back to Settings") }
+                        if (!showInternalNavigation && onStandaloneBack != null && !startOnWebsiteBlock) {
+                            TextButton(onClick = onStandaloneBack) {
+                                Text("‹", style = MaterialTheme.typography.headlineMedium)
+                            }
                         }
                         Text(
                             text = when (selectedTab) {
                                 NativeTab.STATISTICS -> "Your statistics"
                                 NativeTab.FOCUS -> "Focus"
-                                NativeTab.APPS -> "App restrictions"
+                                NativeTab.APPS -> if (startOnWebsiteBlock) "Website blocking" else "App blocking"
                                 NativeTab.DASHBOARD -> ""
                             },
                             style = MaterialTheme.typography.headlineSmall,
@@ -204,7 +226,8 @@ fun NativeHomeScreen(
                 }
             },
             bottomBar = {
-                if (showInternalNavigation) {
+                // Remove the bottom navigation completely while a focus session is active.
+                if (showInternalNavigation && activeFocusSession == null) {
                     NavigationBar {
                         tabs.forEach { tab ->
                             NavigationBarItem(
@@ -234,6 +257,8 @@ fun NativeHomeScreen(
                     modifier = Modifier.padding(padding),
                     usage = selectedStatsUsage,
                     dailyUsage = weeklyUsage,
+                    yearlyDailyUsage = yearlyUsage,
+                    yearStartEpochMillis = yearRange.first,
                     weekStartEpochMillis = weekRange.first,
                     selectedDateEpochMillis = selectedStatsDayRange.first,
                     weekOffset = weekOffset,
@@ -266,14 +291,20 @@ fun NativeHomeScreen(
                     onSaveReflection = onSaveFocusReflection,
                     onBackToHome = { selectedTab = NativeTab.DASHBOARD }
                 )
-                NativeTab.APPS -> if (selectedApp == null) {
+                NativeTab.APPS -> if (startOnWebsiteBlock) {
+                    WebsiteBlockContent(
+                        modifier = Modifier.padding(padding),
+                        wellbeing = wellbeing,
+                        onSaveWellbeing = onSaveWellbeing
+                    )
+                } else if (selectedApp == null) {
                     AppsContent(
                         modifier = Modifier.padding(padding),
                         restrictions = restrictions,
                         groups = groups,
                         wellbeing = wellbeing,
                         onSelectApp = { selectedApp = it },
-                                                onSaveRestrictionGroup = onSaveRestrictionGroup,
+                        onSaveRestrictionGroup = onSaveRestrictionGroup,
                         onDeleteRestrictionGroup = onDeleteRestrictionGroup,
                         onSaveWellbeing = onSaveWellbeing
                     )
@@ -284,7 +315,6 @@ fun NativeHomeScreen(
                         isImportantSystemApp = selectedApp in protectedSystemPackageNames(context),
                         restriction = restrictions.firstOrNull { it.appPackage == selectedApp },
                         groups = groups,
-                        usage = selectedAppUsage,
                         onBack = { selectedApp = null },
                         onSaveRestriction = onSaveAppRestriction,
                         onDeleteRestriction = onDeleteAppRestriction
@@ -340,6 +370,8 @@ private fun StatisticsContent(
     modifier: Modifier,
     usage: List<NativeAppUsageSummary>,
     dailyUsage: List<NativeDailyUsageSummary>,
+    yearlyDailyUsage: List<NativeDailyUsageSummary>,
+    yearStartEpochMillis: Long,
     weekStartEpochMillis: Long,
     selectedDateEpochMillis: Long,
     weekOffset: Int,
@@ -374,6 +406,7 @@ private fun StatisticsContent(
     } else {
         statsRows.sortedByDescending { appMetric(it) }
     }
+    val displayedUsage = if (includeAllApps) sortedUsage else sortedUsage.take(4)
     val weekDays = remember(dailyUsage, weekStartEpochMillis) {
         val recordedDays = dailyUsage.associateBy { it.dateEpochMillis }
         (0..6).map { dayIndex ->
@@ -390,6 +423,28 @@ private fun StatisticsContent(
         }
     }
     val maxDailyUsage = weekDays.maxOfOrNull { dayMetric(it) }?.coerceAtLeast(1L) ?: 1L
+    val weeklyHistory = remember(yearlyDailyUsage, yearStartEpochMillis) {
+        val recordedDays = yearlyDailyUsage.associateBy { it.dateEpochMillis }
+        (0 until 52).map { weekIndex ->
+            val weekStart = Calendar.getInstance().apply {
+                timeInMillis = yearStartEpochMillis
+                add(Calendar.DAY_OF_YEAR, weekIndex * 7)
+            }.timeInMillis
+            val days = (0..6).map { dayIndex ->
+                Calendar.getInstance().apply {
+                    timeInMillis = weekStart
+                    add(Calendar.DAY_OF_YEAR, dayIndex)
+                }.timeInMillis
+            }
+            val recordedDaysInWeek = days.mapNotNull { recordedDays[it] }
+            val total = recordedDaysInWeek
+                .takeIf { it.isNotEmpty() }
+                ?.sumOf { it.totalScreenTime }
+            Triple(weekStart, total, recordedDaysInWeek.size)
+        }
+    }
+    val maxWeeklyScreenTime = weeklyHistory.maxOfOrNull { it.second ?: 0L }
+        ?.coerceAtLeast(1L) ?: 1L
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -397,7 +452,57 @@ private fun StatisticsContent(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text("Usage", style = MaterialTheme.typography.titleLarge)
+            Text("Weekly screen time · last 52 weeks", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Each bar represents one Monday–Sunday week.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (yearlyDailyUsage.isEmpty()) {
+            item {
+                InfoCard(
+                    "No historical usage records",
+                    "Android has not supplied retained usage history for this period yet. The chart will fill as daily records become available."
+                )
+            }
+        }
+        items(weeklyHistory.reversed(), key = { it.first }) { week ->
+            Card(shape = RoundedCornerShape(14.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Week of " + java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
+                                .format(java.util.Date(week.first)),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            week.second?.let(::formatDuration) ?: "No data",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = ((week.second ?: 0L).toFloat() / maxWeeklyScreenTime.toFloat())
+                            .coerceIn(0f, 1f),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        "Recorded on ${week.third} of 7 days",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        item {
+            Text("Daily breakdown · selected week", style = MaterialTheme.typography.titleLarge)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -434,7 +539,7 @@ private fun StatisticsContent(
             }
         }
         if (dailyUsage.isEmpty()) {
-            item { InfoCard("No weekly records", "Your daily usage chart will appear when usage records are available.") }
+            item { InfoCard("No daily records", "Daily usage for the selected week will appear when records are available.") }
         }
         items(weekDays, key = { it.dateEpochMillis }) { day ->
             Card(
@@ -482,7 +587,7 @@ private fun StatisticsContent(
                 )
             }
         } else {
-            items(sortedUsage, key = { it.packageName }) { app ->
+            items(displayedUsage, key = { it.packageName }) { app ->
                 Card(
                     modifier = Modifier.clickable { onSelectApp(app.packageName) },
                     shape = RoundedCornerShape(18.dp)
@@ -501,12 +606,12 @@ private fun StatisticsContent(
                 }
             }
         }
-        if (!includeAllApps && selectedMetric != "alphabetic") {
+        if (!includeAllApps && sortedUsage.size > 4) {
             item {
                 TextButton(
                     onClick = { includeAllApps = true },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Show all apps") }
+                ) { Text("More") }
             }
         }
     }
@@ -922,10 +1027,16 @@ private fun loadRestrictableLaunchableApps(context: Context): List<NativeLauncha
     return packageManager.queryIntentActivities(launcherIntent, 0)
         .mapNotNull { resolveInfo ->
             val info = resolveInfo.activityInfo ?: return@mapNotNull null
+            val label = resolveInfo.loadLabel(packageManager).toString()
+            if (info.packageName in protectedPackages ||
+                ImpSystemAppsHelper.isIneligibleForBlocking(label, info.packageName)
+            ) {
+                return@mapNotNull null
+            }
             NativeLaunchableApp(
                 packageName = info.packageName,
-                label = resolveInfo.loadLabel(packageManager).toString(),
-                isImportantSystemApp = info.packageName in protectedPackages
+                label = label,
+                isImportantSystemApp = false
             )
         }
         .distinctBy { it.packageName }
@@ -1190,8 +1301,8 @@ private fun AppsContent(
         if (restrictions.isEmpty()) {
             item {
                 InfoCard(
-                    title = "No app restrictions",
-                    body = "No rules are saved yet. Select any installed app below to create its restriction rule."
+                    title = "Blocked apps",
+                    body = "No apps are blocked yet. Select an installed app below to set its blocking limit."
                 )
             }
         }
@@ -1209,102 +1320,67 @@ private fun AppsContent(
                 InfoCard("No matching apps", "Try a different app name or package search.")
             }
         } else {
-            items(filteredInstalledApps, key = { it.packageName }) { app ->
-                val rule = restrictionsByPackage[app.packageName]
-                val groupName = groups.firstOrNull { it.id == rule?.associatedGroupId }?.groupName
-                Card(
-                    modifier = Modifier.clickable { onSelectApp(app.packageName) },
-                    shape = RoundedCornerShape(18.dp)
+            items(filteredInstalledApps.chunked(5)) { appRow ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Text(app.label, fontWeight = FontWeight.SemiBold)
-                        Text(app.packageName, style = MaterialTheme.typography.bodySmall)
-                        if (app.isImportantSystemApp) {
-                            Text(
-                                "Essential system app — restrictions disabled",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall
+                    appRow.forEach { app ->
+                        Column(
+                            modifier = Modifier.weight(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { onSelectApp(app.packageName) }
+                                .padding(vertical = 8.dp, horizontal = 2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            AndroidView(
+                                modifier = Modifier.size(48.dp),
+                                factory = { viewContext ->
+                                    ImageView(viewContext).apply {
+                                        scaleType = ImageView.ScaleType.FIT_CENTER
+                                        setPadding(2, 2, 2, 2)
+                                    }
+                                },
+                                update = { imageView ->
+                                    runCatching {
+                                        imageView.setImageDrawable(
+                                            context.packageManager.getApplicationIcon(app.packageName)
+                                        )
+                                    }.onFailure {
+                                        imageView.setImageDrawable(null)
+                                    }
+                                }
                             )
-                        } else if (rule == null) {
-                            Text("No restriction saved", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        } else {
-                            Text("Daily timer: ${rule.timerSec} seconds")
-                            Text("Launch limit: ${rule.launchLimit}")
-                            if (groupName != null) Text("Group: $groupName")
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Restriction groups", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = {
-                    editingGroup = null
-                    groupDialogVisible = true
-                }) { Text("Add group") }
-            }
-        }
-        if (groups.isEmpty()) {
-            item { InfoCard("No restriction groups", "Create a group to organize distracting apps under a shared timer.") }
-        } else {
-            items(groups, key = { it.id }) { group ->
-                Card(shape = RoundedCornerShape(18.dp)) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(group.groupName, fontWeight = FontWeight.SemiBold)
-                        Text("Timer: ${group.timerSec} seconds")
-                        Text(
-                            "Apps: ${nativeGroupAppLabels(jsonItems(group.distractingAppsJson), installedApps.associate { it.packageName to it.label })}"
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = {
-                                editingGroup = group
-                                groupDialogVisible = true
-                            }) { Text("Edit") }
-                            TextButton(onClick = { onDeleteRestrictionGroup(group.id) }) {
-                                Text("Delete")
+                            Text(
+                                app.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                minLines = 2,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            val rule = restrictionsByPackage[app.packageName]
+                            val hasActiveRule = rule != null &&
+                                (rule.timerSec > 0L || rule.launchLimit > 0L ||
+                                    groups.any { it.id == rule.associatedGroupId && it.timerSec > 0L })
+                            if (hasActiveRule) {
+                                Text(
+                                    "Limited",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
+                    repeat(5 - appRow.size) {
+                        Spacer(Modifier.weight(1f))
+                    }
                 }
             }
         }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Website and wellbeing rules", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { wellbeingDialogVisible = true }) { Text("Edit") }
-            }
-        }
-        item {
-            InfoCard(
-                title = if (wellbeing?.blockNsfwSites == true) "Adult-site blocking enabled" else "Adult-site blocking disabled",
-                body = "Allowed short-video time: ${wellbeing?.allowedShortsTimeSec ?: 1800L} seconds\n" +
-                    "Blocked websites: ${jsonItems(wellbeing?.blockedWebsitesJson ?: "[]").size}\n" +
-                    "Blocked features: ${jsonItems(wellbeing?.blockedFeaturesJson ?: "[]").size}\n" +
-                    "Adult-site list: ${jsonItems(wellbeing?.nsfwWebsitesJson ?: "[]").size}"
-            )
-        }
-        val blockedSites = jsonItems(wellbeing?.blockedWebsitesJson ?: "[]")
-        item { Text("Blocked websites", style = MaterialTheme.typography.titleMedium) }
-        if (blockedSites.isEmpty()) {
-            item { InfoCard("No blocked websites", "No blocked websites are saved yet.") }
-        } else {
-            items(blockedSites) { site -> InfoCard(title = site, body = "Saved website restriction") }
-        }
+
     }
     if (groupDialogVisible) {
         RestrictionGroupEditorDialog(
@@ -1327,6 +1403,120 @@ private fun AppsContent(
             }
         )
     }
+}
+
+@Composable
+private fun WebsiteBlockContent(
+    modifier: Modifier,
+    wellbeing: NativeWellbeingEntity?,
+    onSaveWellbeing: (NativeWellbeingEntity) -> Unit
+) {
+    var websiteInput by remember { mutableStateOf("") }
+    var websiteError by remember { mutableStateOf<String?>(null) }
+    val blockedSites = jsonItems(wellbeing?.blockedWebsitesJson ?: "[]")
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Website name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            OutlinedTextField(
+                value = websiteInput,
+                onValueChange = {
+                    websiteInput = it.take(253)
+                    websiteError = null
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Enter website name or domain") },
+                placeholder = { Text("example.com") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                isError = websiteError != null,
+                supportingText = websiteError?.let { error -> ({ Text(error) }) }
+            )
+            TextButton(
+                onClick = {
+                    val host = normalizeBlockedWebsiteHost(websiteInput)
+                    when {
+                        host == null -> websiteError = "Enter a valid website domain, such as example.com."
+                        blockedSites.any { normalizeBlockedWebsiteHost(it) == host } ->
+                            websiteError = "This website is already blocked."
+                        else -> {
+                            val current = wellbeing ?: NativeWellbeingEntity()
+                            val updatedSites = (blockedSites.mapNotNull(::normalizeBlockedWebsiteHost) + host).distinct()
+                            onSaveWellbeing(
+                                current.copy(
+                                    blockedWebsitesJson = JSONArray(updatedSites).toString()
+                                )
+                            )
+                            websiteInput = ""
+                            websiteError = null
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = websiteInput.isNotBlank()
+            ) {
+                Text("Block website")
+            }
+            if (websiteError != null) {
+                Text(websiteError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        item {
+            Text(
+                if (blockedSites.isEmpty()) "Blocked websites" else "Blocked websites (${blockedSites.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        if (blockedSites.isEmpty()) {
+            item { InfoCard("No blocked websites", "Add a website above to block it in supported browsers.") }
+        } else {
+            items(blockedSites) { site ->
+                Card(shape = RoundedCornerShape(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(site, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                        TextButton(onClick = {
+                            val current = wellbeing ?: NativeWellbeingEntity()
+                            val updatedSites = blockedSites.filterNot { it == site }
+                            onSaveWellbeing(current.copy(blockedWebsitesJson = JSONArray(updatedSites).toString()))
+                        }) { Text("Unblock") }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun normalizeBlockedWebsiteHost(input: String): String? {
+    return runCatching {
+        val raw = input.trim().trimEnd('.')
+        if (raw.isBlank() || raw.any { it.isWhitespace() }) return@runCatching null
+        val withScheme = if (raw.contains("://")) raw else "https://$raw"
+        val uri = java.net.URI(withScheme)
+        var host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return@runCatching null
+        while (host.startsWith("www.") || host.startsWith("mobile.") || host.startsWith("m.")) {
+            host = when {
+                host.startsWith("www.") -> host.removePrefix("www.")
+                host.startsWith("mobile.") -> host.removePrefix("mobile.")
+                else -> host.removePrefix("m.")
+            }
+        }
+        if (host.length !in 3..253 || !host.contains('.')) return@runCatching null
+        val labels = host.split('.')
+        if (labels.any { label ->
+                label.isBlank() || label.length > 63 ||
+                    !label.first().isLetterOrDigit() || !label.last().isLetterOrDigit() ||
+                    label.any { !it.isLetterOrDigit() && it != '-' }
+            }
+        ) return@runCatching null
+        host
+    }.getOrNull()
 }
 
 private fun PlatformFeatures.displayLabel(): String = when (this) {
@@ -1626,7 +1816,6 @@ private fun AppDetailContent(
     isImportantSystemApp: Boolean,
     restriction: NativeAppRestrictionEntity?,
     groups: List<NativeRestrictionGroupEntity>,
-    usage: List<NativeAppUsageEntity>,
     onBack: () -> Unit,
     onSaveRestriction: (NativeAppRestrictionEntity) -> Unit,
     onDeleteRestriction: (String) -> Unit
@@ -1655,9 +1844,41 @@ private fun AppDetailContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            TextButton(onClick = onBack) { Text("Back to apps") }
-            Text(nativeAppLabel(context, packageName), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(packageName, style = MaterialTheme.typography.bodySmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    "‹",
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier.clickable(onClick = onBack).padding(end = 4.dp)
+                )
+                AndroidView(
+                    modifier = Modifier.size(76.dp).clip(RoundedCornerShape(18.dp)),
+                    factory = { viewContext ->
+                        ImageView(viewContext).apply {
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            setPadding(3, 3, 3, 3)
+                        }
+                    },
+                    update = { image ->
+                        runCatching {
+                            image.setImageDrawable(context.packageManager.getApplicationIcon(packageName))
+                        }.onFailure {
+                            image.setImageDrawable(null)
+                        }
+                    }
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        nativeAppLabel(context, packageName),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(packageName, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
         if (isImportantSystemApp) {
             item {
@@ -1717,18 +1938,34 @@ private fun AppDetailContent(
                         }
                     }
                     Text("Restriction group: $groupName")
+                    if (
+                        (timerText.toLongOrNull() ?: 0L) <= 0L &&
+                        (launchLimitText.toLongOrNull() ?: 0L) <= 0L &&
+                        groups.none { it.id == restriction?.associatedGroupId && it.timerSec > 0L }
+                    ) {
+                        Text(
+                            "Set a daily time limit or launch limit to activate app blocking.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = {
-                            onSaveRestriction(
-                                NativeAppRestrictionEntity(
-                                    appPackage = packageName,
-                                    timerSec = timerText.toLongOrNull() ?: 0L,
-                                    launchLimit = launchLimitText.toLongOrNull() ?: 0L,
-                                    associatedGroupId = restriction?.associatedGroupId,
-                                    reminderType = reminderType
+                        TextButton(
+                            enabled = (timerText.toLongOrNull() ?: 0L) > 0L ||
+                                (launchLimitText.toLongOrNull() ?: 0L) > 0L ||
+                                groups.any { it.id == restriction?.associatedGroupId && it.timerSec > 0L },
+                            onClick = {
+                                onSaveRestriction(
+                                    NativeAppRestrictionEntity(
+                                        appPackage = packageName,
+                                        timerSec = timerText.toLongOrNull() ?: 0L,
+                                        launchLimit = launchLimitText.toLongOrNull() ?: 0L,
+                                        associatedGroupId = restriction?.associatedGroupId,
+                                        reminderType = reminderType
+                                    )
                                 )
-                            )
-                        }) { Text("Save rule") }
+                            }
+                        ) { Text("Save rule") }
                         if (restriction != null) {
                             TextButton(onClick = { onDeleteRestriction(packageName) }) {
                                 Text("Remove rule")
@@ -1739,22 +1976,7 @@ private fun AppDetailContent(
             }
         }
         }
-        item {
-            Text("Usage for selected day", style = MaterialTheme.typography.titleMedium)
-        }
-        if (usage.isEmpty()) {
-            item { InfoCard("No usage records", "No usage entries for this app were found for the selected day.") }
-        } else {
-            items(usage, key = { it.dateEpochMillis }) { record ->
-                InfoCard(
-                    title = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
-                        .format(java.util.Date(record.dateEpochMillis)),
-                    body = "Screen time: ${formatDuration(record.screenTime)}\n" +
-                        "Mobile data: ${formatDataUsage(record.mobileData)}\n" +
-                        "Wi-Fi data: ${formatDataUsage(record.wifiData)}"
-                )
-            }
-        }
+
     }
 }
 
@@ -1781,12 +2003,21 @@ private fun MetricCard(
 }
 
 @Composable
-private fun InfoCard(title: String, body: String) {
+private fun InfoCard(
+    title: String,
+    body: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
     Card(shape = RoundedCornerShape(20.dp)) {
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (actionLabel != null && onAction != null) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onAction) { Text(actionLabel) }
+            }
         }
     }
 }

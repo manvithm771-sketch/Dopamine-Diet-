@@ -25,7 +25,7 @@ class PreciseCountDownExecutor(
         handlerThread = HandlerThread("PreciseCountDownThread")
         handlerThread?.start()
         handler = Handler(handlerThread!!.looper)
-        startTime = System.currentTimeMillis() // Record the start time
+        startTime = SystemClock.elapsedRealtime() // Monotonic clock; includes device sleep
 
         scheduleNextTick()
     }
@@ -34,7 +34,7 @@ class PreciseCountDownExecutor(
         val delay = timeUnit.toMillis(interval)
 
         handler?.postAtTime({
-            val elapsedTimeMs = System.currentTimeMillis() - startTime
+            val elapsedTimeMs = SystemClock.elapsedRealtime() - startTime
             // Convert the time to same unit
             val elapsedTime = timeUnit.convert(elapsedTimeMs, TimeUnit.MILLISECONDS)
 

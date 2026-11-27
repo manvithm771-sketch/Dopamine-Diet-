@@ -55,6 +55,8 @@ import java.util.Calendar
 open class MainActivity : ComponentActivity() {
     protected val database by lazy { NativeDatabaseProvider.get(applicationContext) }
     private var restrictionController: NativeRestrictionController? = null
+    // 0 = no pending flow, 1 = waiting for Usage Access, 2 = waiting for Overlay access.
+    private var pendingAppBlockingPermissionStep = 0
     private val focusServiceController by lazy { NativeFocusServiceController(applicationContext) }
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -174,10 +176,20 @@ open class MainActivity : ComponentActivity() {
         super.onResume()
         if (!onboardingStateLoaded || startupError != null) return
         refreshNativePermissionStatus()
+        // Retry historical Screen Time backfill immediately after returning from
+        // Android Usage Access settings; the first startup attempt may have lacked permission.
+        runCatching {
+            com.mindful.android.nativeapp.work.NativeUsageRefreshScheduler
+                .scheduleInitialRefresh(this)
+        }.onFailure { error ->
+            android.util.Log.w("Mindful", "Immediate usage refresh scheduling unavailable", error)
+        }
+        // Resume any permission flow started when the user saved an app-blocking rule.
+        resumePendingAppBlockingPermissionFlow()
         // Recheck on return from Android's special Usage Access settings screen.
         resumeActiveFocusSession()
         refreshTodayUsage(showResult = false)
-        syncSavedRestrictions()
+        if (pendingAppBlockingPermissionStep == 0) syncSavedRestrictions()
     }
 
 
@@ -213,7 +225,7 @@ open class MainActivity : ComponentActivity() {
             accessibilityEnabled = Utils.isServiceRunning(this, MindfulAccessibilityService::class.java),
             notificationsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
+                android.content.pm.PackageManager.PERMISSION_GRANTED,
         )
     }
 
@@ -300,8 +312,35 @@ open class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 database.nativeRestrictionDao().saveRestriction(rule)
-                Toast.makeText(this@MainActivity, "Restriction rule saved.", Toast.LENGTH_SHORT).show()
-                syncSavedRestrictions()
+                when {
+                    !hasUsageAccess() -> {
+                        pendingAppBlockingPermissionStep = 1
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Rule saved. Grant Usage Access to activate app blocking.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                    }
+                    !Settings.canDrawOverlays(this@MainActivity) -> {
+                        pendingAppBlockingPermissionStep = 2
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Rule saved. Allow display over other apps to activate blocking.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        requestOverlayAccess()
+                    }
+                    else -> {
+                        pendingAppBlockingPermissionStep = 0
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Rule saved. Applying app-blocking rules.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        syncSavedRestrictions()
+                    }
+                }
             } catch (error: Exception) {
                 Toast.makeText(
                     this@MainActivity,
@@ -415,8 +454,52 @@ open class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun resumePendingAppBlockingPermissionFlow() {
+        when (pendingAppBlockingPermissionStep) {
+            1 -> {
+                pendingAppBlockingPermissionStep = 0
+                if (!hasUsageAccess()) {
+                    Toast.makeText(
+                        this,
+                        "Usage Access is still disabled. App blocking is not active.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else if (!Settings.canDrawOverlays(this)) {
+                    pendingAppBlockingPermissionStep = 2
+                    Toast.makeText(
+                        this,
+                        "Now allow display over other apps to finish app-blocking setup.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    requestOverlayAccess()
+                } else {
+                    Toast.makeText(this, "Permissions granted. Applying app-blocking rules.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            2 -> {
+                pendingAppBlockingPermissionStep = 0
+                if (!Settings.canDrawOverlays(this)) {
+                    Toast.makeText(
+                        this,
+                        "Overlay access is still disabled. App blocking cannot cover restricted apps.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else if (!hasUsageAccess()) {
+                    pendingAppBlockingPermissionStep = 1
+                    Toast.makeText(
+                        this,
+                        "Now grant Usage Access to finish app-blocking setup.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                } else {
+                    Toast.makeText(this, "Permissions granted. Applying app-blocking rules.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     private fun syncSavedRestrictions() {
-        if (!hasUsageAccess() || !Settings.canDrawOverlays(this)) return
         lifecycleScope.launch {
             val dashboard = database.nativeDashboardDao()
             val apps = dashboard.observeAppRestrictions().first()
@@ -586,7 +669,7 @@ open class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun refreshTodayUsage(showResult: Boolean) {
+    protected fun refreshTodayUsage(showResult: Boolean = false) {
         val dayStart = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)

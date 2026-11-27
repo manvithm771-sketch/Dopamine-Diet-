@@ -27,13 +27,15 @@ interface NativeDashboardDao {
             SUM(wifi_data) AS totalWifiData
         FROM app_usage_table
         WHERE date >= :startEpochMillis AND date < :endEpochMillis
+          AND package_name NOT IN (:excludedPackages)
         GROUP BY package_name
         ORDER BY totalScreenTime DESC
         """
     )
     fun observeUsageForRange(
         startEpochMillis: Long,
-        endEpochMillis: Long
+        endEpochMillis: Long,
+        excludedPackages: List<String> = emptyList()
     ): Flow<List<NativeAppUsageSummary>>
 
     @Query(
@@ -45,13 +47,15 @@ interface NativeDashboardDao {
             SUM(wifi_data) AS totalWifiData
         FROM app_usage_table
         WHERE date >= :startEpochMillis AND date < :endEpochMillis
+          AND package_name NOT IN (:excludedPackages)
         GROUP BY date
         ORDER BY date ASC
         """
     )
     fun observeDailyUsageRange(
         startEpochMillis: Long,
-        endEpochMillis: Long
+        endEpochMillis: Long,
+        excludedPackages: List<String> = emptyList()
     ): Flow<List<NativeDailyUsageSummary>>
 
     @Query(
@@ -91,6 +95,9 @@ interface NativeDashboardDao {
 
     @Query("SELECT * FROM wellbeing_table WHERE id = 0 LIMIT 1")
     fun observeWellbeing(): Flow<NativeWellbeingEntity?>
+
+    @Query("SELECT excluded_apps FROM shared_unique_data_table WHERE id = 0 LIMIT 1")
+    fun observeExcludedAppsJson(): Flow<String?>
 
     @Query("SELECT * FROM mindful_settings_table WHERE id = 0 LIMIT 1")
     fun observeSettings(): Flow<NativeMindfulSettingsEntity?>

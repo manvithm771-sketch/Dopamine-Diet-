@@ -1,6 +1,7 @@
 package com.mindful.android.nativeapp.restrictions
 
 import com.mindful.android.enums.ReminderType
+import com.mindful.android.helpers.device.ImpSystemAppsHelper
 import com.mindful.android.nativeapp.data.local.entity.NativeAppRestrictionEntity
 import com.mindful.android.nativeapp.data.local.entity.NativeRestrictionGroupEntity
 import org.junit.Assert.assertEquals
@@ -13,6 +14,45 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class NativeRestrictionRulesTest {
+
+    @Test fun allElevenRequestedAppCategoriesAreIneligibleAcrossPackageVariants() {
+        val ineligibleApps = listOf(
+            "Calendar" to "com.google.android.calendar",
+            "Calculator" to "com.android.calculator2",
+            "Clock" to "com.google.android.deskclock",
+            "Camera" to "com.android.camera2",
+            "Files" to "com.google.android.documentsui",
+            "Truecaller" to "com.truecaller",
+            "Voice Recorder" to "com.oem.voicerecorder",
+            "Contacts" to "com.google.android.contacts",
+            "Phone" to "com.google.android.dialer",
+            "Messages" to "com.google.android.apps.messaging",
+            "Settings" to "com.android.settings"
+        )
+
+        ineligibleApps.forEach { (label, packageName) ->
+            assertTrue(
+                "$label should not be offered for blocking",
+                ImpSystemAppsHelper.isIneligibleForBlocking(label, packageName)
+            )
+        }
+    }
+
+    @Test fun localizedOrManufacturerSpecificPackageNamesCanBeMatchedByKnownPackageIdentifier() {
+        assertTrue(
+            ImpSystemAppsHelper.isIneligibleForBlocking(
+                "My Files",
+                "com.samsung.android.myfiles"
+            )
+        )
+        assertTrue(
+            ImpSystemAppsHelper.isIneligibleForBlocking(
+                "Sound Recorder",
+                "com.sec.android.app.voicenote"
+            )
+        )
+    }
+
     @Test fun mapsNativeRowsToExistingAndroidRestrictionModels() {
         val rules = buildNativeRestrictionRules(
             listOf(NativeAppRestrictionEntity(

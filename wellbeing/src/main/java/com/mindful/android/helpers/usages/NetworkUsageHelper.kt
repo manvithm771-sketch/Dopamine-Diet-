@@ -37,9 +37,8 @@ object NetworkUsageHelper {
         networkStatsManager: NetworkStatsManager,
         start: Long,
         end: Long,
-        strict: Boolean = false,
     ): Map<Int, Long> =
-        fetchNetworkUsageForInterval(networkStatsManager, ConnectivityManager.TYPE_WIFI, start, end, strict)
+        fetchNetworkUsageForInterval(networkStatsManager, ConnectivityManager.TYPE_WIFI, start, end)
 
     /**
      * Fetches mobile data usage statistics for a specified time interval.
@@ -53,14 +52,12 @@ object NetworkUsageHelper {
         networkStatsManager: NetworkStatsManager,
         start: Long,
         end: Long,
-        strict: Boolean = false,
     ): Map<Int, Long> =
         fetchNetworkUsageForInterval(
             networkStatsManager,
             ConnectivityManager.TYPE_MOBILE,
             start,
-            end,
-            strict
+            end
         )
 
     /**
@@ -100,7 +97,6 @@ object NetworkUsageHelper {
         networkType: Int,
         start: Long,
         end: Long,
-        strict: Boolean = false,
     ): Map<Int, Long> {
         val usageMap = mutableMapOf<Int, Long>()
         try {
@@ -123,7 +119,6 @@ object NetworkUsageHelper {
                 "fetchNetworkUsageForInterval: Error fetching network usage for type $networkType",
                 e
             )
-            if (strict) throw e
         }
 
         return usageMap

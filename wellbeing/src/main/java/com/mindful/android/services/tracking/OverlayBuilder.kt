@@ -107,6 +107,11 @@ object OverlayBuilder {
                 RestrictionType.LAUNCH_COUNT -> R.string.app_paused_restriction_launch_count
                 RestrictionType.APP_TIMER -> R.string.app_paused_restriction_app_timer
                 RestrictionType.GROUP_TIMER -> R.string.app_paused_restriction_group_timer
+                // Active-period and bedtime restrictions use the same blocking presentation
+                // as their corresponding timer/focus restrictions.
+                RestrictionType.BEDTIME -> R.string.app_paused_restriction_focus_mode
+                RestrictionType.APP_ACTIVE_PERIOD -> R.string.app_paused_restriction_app_timer
+                RestrictionType.GROUP_ACTIVE_PERIOD -> R.string.app_paused_restriction_group_timer
             }
         )
 
@@ -218,12 +223,19 @@ object OverlayBuilder {
                 if (isLimitExhausted) context.getString(R.string.app_paused_reason_app_timer_out)
                 else context.getString(R.string.app_paused_reason_app_timer_left)
 
-            RestrictionType.GROUP_TIMER ->
+            RestrictionType.GROUP_TIMER, RestrictionType.GROUP_ACTIVE_PERIOD ->
                 if (isLimitExhausted) context.getString(
                     R.string.app_paused_reason_group_timer_out,
                     state.groupName
                 )
                 else context.getString(R.string.app_paused_reason_group_timer_left, state.groupName)
+
+            RestrictionType.BEDTIME ->
+                context.getString(R.string.app_paused_reason_focus_session)
+
+            RestrictionType.APP_ACTIVE_PERIOD ->
+                if (isLimitExhausted) context.getString(R.string.app_paused_reason_app_timer_out)
+                else context.getString(R.string.app_paused_reason_app_timer_left)
 
         }
     }

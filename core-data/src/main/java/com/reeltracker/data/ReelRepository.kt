@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
@@ -53,6 +54,24 @@ class ReelRepository internal constructor(private val dao: ReelDao) {
         }
     }
 
+    /** Daily Instagram + YouTube event counts for the most recent seven local calendar days. */
+    val dailyScrollCounts: Flow<List<com.reeltracker.model.DailyScrollCount>> =
+        dailyWindow().flatMapLatest { window ->
+            dao.eventsBetween(window.start, window.end).map { events ->
+                val byDate = events.groupBy {
+                    java.time.Instant.ofEpochMilli(it.wallClock).atZone(window.zone).toLocalDate()
+                }
+                window.dates.map { date ->
+                    val dayEvents = byDate[date].orEmpty()
+                    com.reeltracker.model.DailyScrollCount(
+                        date = date,
+                        instagramReels = dayEvents.count { it.strategyId != YOUTUBE_STRATEGY },
+                        youtubeShorts = dayEvents.count { it.strategyId == YOUTUBE_STRATEGY },
+                    )
+                }
+            }
+        }
+
     /** feedVisitId prevents duplicate indexes within one visit; it does not measure duration. */
     suspend fun record(feedVisitId: Long, key: Int, strategyId: String) {
         dao.insertEvent(ReelEvent(sessionId = feedVisitId, key = key, wallClock = now(), strategyId = strategyId))
@@ -71,6 +90,32 @@ class ReelRepository internal constructor(private val dao: ReelDao) {
     }.distinctUntilChanged()
 
     private data class PeriodStarts(val week: Long, val month: Long)
+
+    private data class DailyWindow(
+        val start: Long,
+        val end: Long,
+        val dates: List<LocalDate>,
+        val zone: ZoneId,
+    )
+
+    private fun dailyWindow(): Flow<DailyWindow> = flow {
+        while (true) {
+            val zone = ZoneId.systemDefault()
+            val today = LocalDate.now(zone)
+            val firstDate = today.minusDays(6)
+            val endDate = today.plusDays(1)
+            val end = endDate.atStartOfDay(zone).toInstant().toEpochMilli()
+            emit(
+                DailyWindow(
+                    start = firstDate.atStartOfDay(zone).toInstant().toEpochMilli(),
+                    end = end,
+                    dates = (0L..6L).map(firstDate::plusDays),
+                    zone = zone,
+                )
+            )
+            delay((end - System.currentTimeMillis()).coerceAtLeast(0) + 1_000)
+        }
+    }.distinctUntilChanged()
 
     private fun periodStarts(): Flow<PeriodStarts> = flow {
         while (true) {

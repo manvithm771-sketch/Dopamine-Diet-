@@ -8,9 +8,24 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import com.mindful.android.nativeapp.data.local.entity.NativeMindfulSettingsEntity
+
+private val DopamineDarkColors = darkColorScheme(
+    primary = Color(0xFFAA83FF),
+    onPrimary = Color(0xFF160D27),
+    secondary = Color(0xFF4D9DFF),
+    onSecondary = Color(0xFF07182B),
+    tertiary = Color(0xFF42DDA5),
+    background = Color(0xFF08090E),
+    surface = Color(0xFF171923),
+    surfaceVariant = Color(0xFF222333),
+    onBackground = Color(0xFFF7F5FC),
+    onSurface = Color(0xFFF7F5FC),
+    onSurfaceVariant = Color(0xFFB3B2C5),
+    outline = Color(0xFF45465B)
+)
 
 @Composable
 fun NativeMindfulTheme(
@@ -25,16 +40,17 @@ fun NativeMindfulTheme(
         else -> systemDark
     }
     val context = LocalContext.current
-    val seed = if (forceDopamineDietTheme) Color(0xFFB69AFF) else nativeSeedColor(settings?.accentColor ?: "Indigo")
+    val seed = if (forceDopamineDietTheme) Color(0xFFAA83FF) else nativeSeedColor(settings?.accentColor ?: "Indigo")
     val dynamicEnabled = !forceDopamineDietTheme && settings?.useDynamicColors == true &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val baseColors = when {
+        forceDopamineDietTheme -> DopamineDarkColors
         dynamicEnabled && dark -> dynamicDarkColorScheme(context)
         dynamicEnabled -> dynamicLightColorScheme(context)
         dark -> darkColorScheme(primary = seed)
         else -> lightColorScheme(primary = seed)
     }
-    val colors = if (dark && settings?.useAmoledDark == true) {
+    val colors = if (!forceDopamineDietTheme && dark && settings?.useAmoledDark == true) {
         baseColors.copy(background = Color.Black, surface = Color.Black)
     } else {
         baseColors

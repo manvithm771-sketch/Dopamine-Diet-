@@ -29,3 +29,12 @@ data class UsageOverview(
         val EMPTY = UsageOverview()
     }
 }
+
+/** Per-calendar-day local counts for the Scroll insights chart. */
+data class DailyScrollCount(
+    val date: java.time.LocalDate,
+    val instagramReels: Int = 0,
+    val youtubeShorts: Int = 0,
+) {
+    val total: Int get() = instagramReels + youtubeShorts
+}
