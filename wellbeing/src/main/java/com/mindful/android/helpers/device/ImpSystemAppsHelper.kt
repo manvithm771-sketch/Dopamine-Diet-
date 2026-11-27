@@ -37,7 +37,8 @@ object ImpSystemAppsHelper {
         "voicerecorder",
         "voicenote",
         "soundrecorder",
-        "recorder"
+        "recorder",
+        "weather"
     )
 
     /**
