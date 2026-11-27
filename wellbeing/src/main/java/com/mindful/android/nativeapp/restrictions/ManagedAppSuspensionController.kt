@@ -96,7 +96,7 @@ internal class ManagedAppSuspensionController(context: Context) {
     private fun rememberHidden(packageName: String, hidden: Boolean = true) {
         val updated = trackedPackages().toMutableSet()
         if (hidden) updated.add(packageName) else updated.remove(packageName)
-        preferences.edit().putStringSet(KEY_SUSPENDED_PACKAGES, updated).apply()
+        preferences.edit().putStringSet(KEY_HIDDEN_PACKAGES, updated).apply()
     }
 
     private fun isEligiblePackage(packageName: String): Boolean =
@@ -107,6 +107,6 @@ internal class ManagedAppSuspensionController(context: Context) {
     private companion object {
         const val TAG = "DopamineAppHiding"
         const val PREFERENCES_NAME = "managed_app_hiding"
-        const val KEY_SUSPENDED_PACKAGES = "suspended_by_dopamine_diet"
+        const val KEY_HIDDEN_PACKAGES = "hidden_by_dopamine_diet"
     }
 }
