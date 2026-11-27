@@ -281,8 +281,8 @@ fun DopamineDietScreenTimeDestination(
             )
         }
 
+    }
 }
-
 
 
 @Composable
