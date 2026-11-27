@@ -177,10 +177,10 @@ class MindfulTrackerService : Service() {
 
             if (currentOrFutureState == null || currentOrFutureState.timeLeftMillis > 0L) {
                 // A rule was removed, or the daily limit has not been reached yet.
-                ManagedAppSuspensionController(applicationContext).unsuspendPackage(packageName)
+                ManagedAppSuspensionController(applicationContext).restorePackage(packageName)
             } else {
                 val hiddenByDevicePolicy =
-                    ManagedAppSuspensionController(applicationContext).suspendPackage(packageName)
+                    ManagedAppSuspensionController(applicationContext).hidePackage(packageName)
                 if (!hiddenByDevicePolicy) {
                     // Preserve the existing Mindful blocking experience on ordinary devices
                     // and for packages Android refuses to suspend.
