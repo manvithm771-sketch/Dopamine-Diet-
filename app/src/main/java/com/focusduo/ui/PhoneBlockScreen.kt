@@ -1,6 +1,9 @@
 package com.focusduo.ui
 
 import android.app.Activity
+import android.app.ActivityManager
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.SystemClock
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
@@ -14,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,13 +47,19 @@ private val PhoneBlockSurface = Color(0xFF171923)
 private val PhoneBlockMuted = Color(0xFFAAAABD)
 private val PhoneBlockAccent = Color(0xFFAA83FF)
 
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 @Composable
 fun PhoneBlockScreen(
     onBack: () -> Unit,
     onBlockFinished: () -> Unit
 ) {
     val context = LocalContext.current
-    val activity = context as? Activity
+    val activity = remember(context) { context.findActivity() }
     val durationOptions = listOf(
         15L * 60_000L to "15 min",
         30L * 60_000L to "30 min",
@@ -61,6 +69,8 @@ fun PhoneBlockScreen(
     var selectedDuration by remember { mutableLongStateOf(30L * 60_000L) }
     var endElapsedRealtime by remember { mutableLongStateOf(0L) }
     var remainingMillis by remember { mutableLongStateOf(0L) }
+    var pinRequestPending by remember { mutableStateOf(false) }
+    var pinRequestMessage by remember { mutableStateOf<String?>(null) }
     val isActive = endElapsedRealtime > 0L
 
     DisposableEffect(activity, isActive) {
@@ -84,6 +94,39 @@ fun PhoneBlockScreen(
         }
     }
 
+    LaunchedEffect(pinRequestPending) {
+        if (!pinRequestPending) return@LaunchedEffect
+        val hostActivity = activity
+        if (hostActivity == null) {
+            pinRequestMessage = "Could not start screen pinning on this screen."
+            pinRequestPending = false
+            return@LaunchedEffect
+        }
+
+        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        var enteredPinMode = false
+        repeat(75) {
+            val state = manager.lockTaskModeState
+            if (state == ActivityManager.LOCK_TASK_MODE_PINNED ||
+                state == ActivityManager.LOCK_TASK_MODE_LOCKED
+            ) {
+                enteredPinMode = true
+                return@repeat
+            }
+            if (!enteredPinMode) delay(200L)
+        }
+
+        pinRequestPending = false
+        if (enteredPinMode) {
+            pinRequestMessage = null
+            endElapsedRealtime = SystemClock.elapsedRealtime() + selectedDuration
+            remainingMillis = selectedDuration
+        } else {
+            pinRequestMessage =
+                "Screen pinning was not enabled. Approve the Android prompt and try again."
+        }
+    }
+
     LaunchedEffect(endElapsedRealtime) {
         if (endElapsedRealtime <= 0L) return@LaunchedEffect
         while (true) {
@@ -91,6 +134,7 @@ fun PhoneBlockScreen(
             remainingMillis = left
             if (left == 0L) {
                 endElapsedRealtime = 0L
+                activity?.stopLockTask()
                 onBlockFinished()
                 break
             }
@@ -110,7 +154,7 @@ fun PhoneBlockScreen(
             Text("Phone Block", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
             Text(
-                "Choose how long you want to step away from your phone.",
+                "Choose a duration. Android will ask you to approve screen pinning before the session begins.",
                 color = PhoneBlockMuted,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -142,20 +186,38 @@ fun PhoneBlockScreen(
                     }
                 }
             }
+            pinRequestMessage?.let { message ->
+                Spacer(Modifier.height(14.dp))
+                Text(message, color = Color(0xFFFFB4AB), style = MaterialTheme.typography.bodySmall)
+            }
             Spacer(Modifier.height(22.dp))
             Button(
                 onClick = {
-                    endElapsedRealtime = SystemClock.elapsedRealtime() + selectedDuration
-                    remainingMillis = selectedDuration
+                    pinRequestMessage = null
+                    try {
+                        activity?.startLockTask()
+                        pinRequestPending = true
+                    } catch (_: SecurityException) {
+                        pinRequestMessage = "Android did not allow screen pinning. Check your device's screen-pinning setting."
+                    } catch (_: IllegalStateException) {
+                        pinRequestMessage = "Screen pinning could not start. Please try again."
+                    }
                 },
+                enabled = !pinRequestPending,
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PhoneBlockAccent, contentColor = Color(0xFF17121F))
             ) {
-                Text("Start Phone Block", fontWeight = FontWeight.Bold)
+                Text(
+                    if (pinRequestPending) "Waiting for Android approval…" else "Start Phone Block",
+                    fontWeight = FontWeight.Bold
+                )
             }
             Spacer(Modifier.height(12.dp))
-            androidx.compose.material3.TextButton(onClick = onBack) {
+            androidx.compose.material3.TextButton(
+                onClick = onBack,
+                enabled = !pinRequestPending
+            ) {
                 Text("Back", color = PhoneBlockMuted)
             }
         }
@@ -177,12 +239,13 @@ fun PhoneBlockScreen(
                 Text("PHONE BLOCK ACTIVE", color = PhoneBlockAccent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 Text("Take a break.", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 Text(timerText, color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.SemiBold)
-                Text("Your session ends when the timer reaches zero.", color = PhoneBlockMuted, style = MaterialTheme.typography.bodyMedium)
+                Text("Android screen pinning is active for this session.", color = PhoneBlockMuted, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(18.dp))
                 Button(
                     onClick = {
                         endElapsedRealtime = 0L
                         remainingMillis = 0L
+                        activity?.stopLockTask()
                         onBlockFinished()
                     },
                     modifier = Modifier.fillMaxWidth().height(54.dp),
@@ -192,7 +255,7 @@ fun PhoneBlockScreen(
                     Text("Emergency · Exit Phone Block", fontWeight = FontWeight.SemiBold)
                 }
                 Text(
-                    "Emergency exit ends this session immediately.",
+                    "You can also leave using Android's screen-pinning exit controls.",
                     color = PhoneBlockMuted,
                     style = MaterialTheme.typography.bodySmall
                 )
