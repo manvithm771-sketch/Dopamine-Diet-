@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mindful.android.enums.PlatformFeatures
 import com.mindful.android.nativeapp.restrictions.protectedSystemPackageNames
+import com.mindful.android.nativeapp.restrictions.ManagedAppSuspensionController
 import com.mindful.android.nativeapp.data.local.NativeDashboardDao
 import com.mindful.android.nativeapp.data.local.NativeAppUsageSummary
 import com.mindful.android.nativeapp.data.local.NativeDailyUsageSummary
@@ -1272,6 +1273,7 @@ private fun AppsContent(
     onSaveWellbeing: (NativeWellbeingEntity) -> Unit
 ) {
     val context = LocalContext.current
+    val managedDeviceOwner = ManagedAppSuspensionController(context).isDeviceOwner
     val installedApps = remember(context) { loadRestrictableLaunchableApps(context) }
     val restrictionsByPackage = remember(restrictions) {
         restrictions.associateBy { it.appPackage }
@@ -1289,6 +1291,20 @@ private fun AppsContent(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        item {
+            InfoCard(
+                title = if (managedDeviceOwner) {
+                    "App icon hiding is enabled"
+                } else {
+                    "Optional: hide blocked app icons"
+                },
+                body = if (managedDeviceOwner) {
+                    "Dopamine Diet is the device owner. When an app reaches its blocking limit, Android can suspend it and remove its launcher entry. Removing its rule or the daily reset restores it."
+                } else {
+                    "This advanced mode requires Dopamine Diet to be provisioned as the device owner. It is not a normal permission prompt and may require a factory reset. Back up the phone first. After installing on a freshly reset device, provision with: adb shell dpm set-device-owner com.dopaminediet/com.mindful.android.admin.DopamineDeviceAdminReceiver"
+                }
+            )
+        }
         if (restrictions.isEmpty()) {
             item {
                 InfoCard(
