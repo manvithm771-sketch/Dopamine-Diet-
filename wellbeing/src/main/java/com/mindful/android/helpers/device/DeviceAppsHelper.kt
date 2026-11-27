@@ -13,10 +13,8 @@ import com.mindful.android.utils.AppUtils
 object DeviceAppsHelper {
 
     /**
-     * Retrieves a list of installed device apps with their infos.
-     *
-     * @param context       The context to use for fetching app information.
-     * @param onSuccess Callback which will be invoke after fetching infos.
+     * Retrieves launchable apps that are eligible for app blocking.
+     * Core phone utilities and the other protected categories are omitted.
      */
     fun getDeviceAppInfos(
         context: Context,
@@ -25,41 +23,44 @@ object DeviceAppsHelper {
         Thread {
             val packageManager = context.packageManager
 
-            // Fetch set of important apps like Dialer, Launcher etc.
-            val impSystemApps = ImpSystemAppsHelper.fetchImpApps(packageManager)
-            impSystemApps.add(context.packageName)
-            impSystemApps.add(AppConstants.SETTINGS_PACKAGE)
+            // Exclude the app itself, Settings, default launcher/dialer, and all
+            // installed apps matching the eleven ineligible app categories.
+            val ineligiblePackages = ImpSystemAppsHelper.fetchImpApps(packageManager).apply {
+                add(context.packageName)
+                add(AppConstants.SETTINGS_PACKAGE)
+            }
 
-            // Fetch set of all launchable apps
             val launchableApps = packageManager.queryIntentActivities(
                 Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),
                 0
             )
 
-
             val deviceAppsMapList: MutableList<Map<String, Any>> = launchableApps
+                .filterNot { appInfo ->
+                    appInfo.activityInfo.packageName in ineligiblePackages ||
+                        ImpSystemAppsHelper.isIneligibleForBlocking(
+                            appInfo.loadLabel(packageManager).toString(),
+                            appInfo.activityInfo.packageName
+                        )
+                }
+                .distinctBy { it.activityInfo.packageName }
                 .map { appInfo ->
                     getAppInfoMap(
                         name = appInfo.loadLabel(packageManager).toString(),
                         packageName = appInfo.activityInfo.packageName,
-                        isImpSysApp = impSystemApps.contains(appInfo.activityInfo.packageName),
+                        isImpSysApp = false,
                         appIcon = AppUtils.getEncodedAppIcon(
-                            packageManager.getApplicationIcon(
-                                appInfo.activityInfo.applicationInfo
-                            )
+                            packageManager.getApplicationIcon(appInfo.activityInfo.applicationInfo)
                         ),
                     )
                 }.toMutableList()
 
-
             // Get placeholder icon
             val placeholderIcon = AppUtils.getEncodedAppIcon(
-                packageManager.getApplicationIcon(
-                    ApplicationInfo()
-                )
+                packageManager.getApplicationIcon(ApplicationInfo())
             )
 
-            // Add additional apps for network usage
+            // Additional pseudo-app entries used for network usage
             deviceAppsMapList.add(
                 getAppInfoMap(
                     name = TETHERING_APP_NAME,
@@ -69,7 +70,6 @@ object DeviceAppsHelper {
                 )
             )
 
-            // removed apps
             deviceAppsMapList.add(
                 getAppInfoMap(
                     name = REMOVED_APP_NAME,
@@ -88,12 +88,10 @@ object DeviceAppsHelper {
         packageName: String,
         isImpSysApp: Boolean,
         appIcon: String,
-    ): Map<String, Any> {
-        return mapOf(
-            "appName" to name,
-            "packageName" to packageName,
-            "isImpSysApp" to isImpSysApp,
-            "appIcon" to appIcon,
-        );
-    }
+    ): Map<String, Any> = mapOf(
+        "appName" to name,
+        "packageName" to packageName,
+        "isImpSysApp" to isImpSysApp,
+        "appIcon" to appIcon,
+    )
 }
