@@ -31,6 +31,9 @@ class TodayViewModel(app: Application) : AndroidViewModel(app) {
     val usageOverview: StateFlow<UsageOverview> =
         repo.usageOverview.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UsageOverview.EMPTY)
 
+    val dailyScrollCounts =
+        repo.dailyScrollCounts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val lastEventAt: StateFlow<Long?> =
         repo.lastEventAt.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
