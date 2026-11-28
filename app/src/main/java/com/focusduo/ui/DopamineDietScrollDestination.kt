@@ -7,83 +7,49 @@ import android.content.Intent
 import android.provider.Settings
 import android.text.format.DateFormat
 import android.widget.Toast
-import android.widget.ImageView
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.activity.compose.BackHandler
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.reeltracker.service.BrainRot
 import com.reeltracker.service.ReelAccessibilityService
 import com.reeltracker.service.ReelServiceState
 import com.reeltracker.service.ReelWidgetProvider
+import com.reeltracker.ui.LocalPalette
+import com.reeltracker.ui.Palette
+import com.reeltracker.ui.TodayScreen
 import com.reeltracker.ui.TodayViewModel
+import com.reeltracker.ui.Tracking
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.ui.graphics.Color
 
-private val ScrollBg = Color(0xFF08090E)
-private val ScrollCard = Color(0xFF171923)
-private val ScrollText = Color(0xFFF7F5FC)
-private val ScrollMuted = Color(0xFFAAAABD)
-private val ScrollViolet = Color(0xFF9B6DFF)
-private val ScrollBlue = Color(0xFF278DFF)
-private val ScrollMint = Color(0xFF36DFA0)
-
+/**
+ * Hosts the existing Dopamine Diet Scroll experience inside the unified product.
+ * The original ViewModel, repository, accessibility tracking and export flow remain
+ * the source of truth; this wrapper does not create a parallel tracking implementation.
+ */
 @Composable
 fun DopamineDietScrollDestination() {
     val context = LocalContext.current
     val viewModel: TodayViewModel = viewModel()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val usageOverview by viewModel.usageOverview.collectAsStateWithLifecycle()
-    val dailyScrollCounts by viewModel.dailyScrollCounts.collectAsStateWithLifecycle()
     val lastEventAt by viewModel.lastEventAt.collectAsStateWithLifecycle()
+    val dailyCounts by viewModel.dailyCounts.collectAsStateWithLifecycle()
     val exportMessage by viewModel.exportMessage.collectAsStateWithLifecycle()
 
     var tracking by remember { mutableStateOf(readTrackingState(context)) }
     var is24h by remember { mutableStateOf(DateFormat.is24HourFormat(context)) }
+
     LifecycleResumeEffect(Unit) {
         tracking = readTrackingState(context)
         is24h = DateFormat.is24HourFormat(context)
@@ -91,259 +57,77 @@ fun DopamineDietScrollDestination() {
         onPauseOrDispose { }
     }
 
-    val totalToday = stats.count + stats.shortsCount
-    var showInsights by remember { mutableStateOf(false) }
-    if (showInsights) {
-        BackHandler(enabled = true) { showInsights = false }
-        ScrollInsightsScreen(today = totalToday, week = usageOverview.thisWeek, month = usageOverview.thisMonth, allTime = usageOverview.total, daily = dailyScrollCounts, onBack = { showInsights = false })
-        return
-    }
-
-    val date = remember(is24h) {
-        java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date())
-    }
-
-    androidx.compose.foundation.lazy.LazyColumn(
-        modifier = Modifier.fillMaxSize().background(ScrollBg),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 26.dp),
-        verticalArrangement = Arrangement.spacedBy(15.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Scroll", color = ScrollText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                StatisticsIcon(Modifier.size(42.dp).clip(CircleShape).clickable { showInsights = true }.padding(10.dp))
-            }
-        }
-        item {
-            Column(
-                Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Image(
-                        painter = painterResource(id = BrainRot.sprite(BrainRot.stage(totalToday))),
-                        contentDescription = "Brain status: ${BrainRot.label(BrainRot.stage(totalToday))}",
-                        modifier = Modifier.size(width = 148.dp, height = 124.dp)
-                    )
-                    Text("$totalToday", color = ScrollText, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Text("Reels + Shorts", color = ScrollMuted, style = MaterialTheme.typography.labelMedium)
-                }
-                Spacer(Modifier.height(13.dp))
-                Text(date, color = ScrollMuted, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-        item {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                PlatformCountRow(
-                    context = context,
-                    packageName = "com.instagram.android",
-                    label = "Instagram Reels",
-                    count = stats.count
-                )
-                PlatformCountRow(
-                    context = context,
-                    packageName = "com.google.android.youtube",
-                    label = "YouTube Shorts",
-                    count = stats.shortsCount
-                )
-            }
-        }
-        if (tracking != com.reeltracker.ui.Tracking.On) {
-            item {
-                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF211D2E))) {
-                    Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("Turn on scroll tracking", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Enable the accessibility service to count Reels and Shorts while you use supported apps.", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
-                        Button(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }, colors = ButtonDefaults.buttonColors(containerColor = ScrollViolet)) {
-                            Text("Open Accessibility settings")
-                        }
-                    }
-                }
-            }
-        }
-        item { lastEventAt?.let { Text("Last activity: ${java.text.DateFormat.getTimeInstance(if (is24h) java.text.DateFormat.SHORT else java.text.DateFormat.SHORT).format(java.util.Date(it))}", color = ScrollMuted, style = MaterialTheme.typography.bodySmall) } }
-    }
-}
-
-@Composable
-private fun PlatformCountRow(
-    context: Context,
-    packageName: String,
-    label: String,
-    count: Int
-) {
-    val iconAvailable = remember(packageName) {
-        try {
-            context.packageManager.getApplicationIcon(packageName)
-            true
-        } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-            false
-        }
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (iconAvailable) {
-            AndroidView(
-                factory = { viewContext ->
-                    ImageView(viewContext).apply {
-                        scaleType = ImageView.ScaleType.FIT_CENTER
-                        setImageDrawable(viewContext.packageManager.getApplicationIcon(packageName))
-                    }
+    val palette = Palette(
+        background = Color(0xFF09090D),
+        card = Color(0xFF17171F),
+        textPrimary = Color(0xFFF7F5FC),
+        textSecondary = Color(0xFFB8B3C5),
+        textMuted = Color(0xFF817B90),
+        accent = Color(0xFFB69AFF),
+        good = Color(0xFF75D6A0)
+    )
+    CompositionLocalProvider(LocalPalette provides palette) {
+        MaterialTheme(
+            colorScheme = darkColorScheme(
+                primary = palette.accent,
+                background = palette.background,
+                surface = palette.card,
+                onSurface = palette.textPrimary
+            )
+        ) {
+            TodayScreen(
+                now = rememberNowMillis(),
+                stats = stats,
+                usageOverview = usageOverview,
+                lastEventAt = lastEventAt,
+                dailyCounts = dailyCounts,
+                tracking = tracking,
+                is24h = is24h,
+                exportMessage = exportMessage,
+                onOpenAccessibility = {
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 },
-                modifier = Modifier.size(34.dp)
+                onExport = viewModel::exportCapture,
+                onAddWidget = { requestBrainWidget(context) }
             )
         }
-        Column(
-            modifier = Modifier.weight(1f).padding(start = if (iconAvailable) 13.dp else 0.dp)
-        ) {
-            Text(label, color = ScrollText, fontWeight = FontWeight.Medium)
-        }
-        Text(count.toString(), color = ScrollText, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
-private fun ScrollCountRow(label: String, count: Int) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = ScrollMuted, modifier = Modifier.weight(1f))
-        Text(count.toString(), color = ScrollText, fontWeight = FontWeight.SemiBold)
+private fun rememberNowMillis(): Long {
+    val now by produceState(System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            delay(1_000L - value % 1_000L)
+        }
     }
+    return now
 }
 
-private fun readTrackingState(context: Context): com.reeltracker.ui.Tracking {
+private fun readTrackingState(context: Context): Tracking {
     val service = ComponentName(context, ReelAccessibilityService::class.java)
-    val enabled = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-        ?.split(':')?.any { ComponentName.unflattenFromString(it) == service } == true
+    val enabled = Settings.Secure.getString(
+        context.contentResolver,
+        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+    )?.split(':')?.any { ComponentName.unflattenFromString(it) == service } == true
     return when {
-        !enabled -> com.reeltracker.ui.Tracking.Off
-        ReelServiceState.connected -> com.reeltracker.ui.Tracking.On
-        else -> com.reeltracker.ui.Tracking.Stalled
+        !enabled -> Tracking.Off
+        ReelServiceState.connected -> Tracking.On
+        else -> Tracking.Stalled
     }
 }
 
 private fun requestBrainWidget(context: Context) {
     val manager = AppWidgetManager.getInstance(context)
     val provider = ComponentName(context, ReelWidgetProvider::class.java)
-    val pinned = manager.isRequestPinAppWidgetSupported && manager.requestPinAppWidget(provider, null, null)
-    if (!pinned) Toast.makeText(context, "Long-press your home screen, open Widgets, and add Dopamine Diet.", Toast.LENGTH_LONG).show()
-}
-
-@Composable
-private fun StatisticsIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val color = Color(0xFFE5E5EF)
-        val stroke = 2.dp.toPx()
-        listOf(0.35f, 0.65f, 0.95f).forEachIndexed { index, height ->
-            val x = size.width * (0.18f + index * 0.32f)
-            drawLine(color, Offset(x, size.height * (1f - height)), Offset(x, size.height), strokeWidth = stroke)
-        }
-    }
-}
-
-@Composable
-private fun ScrollInsightsScreen(today: Int, week: com.reeltracker.model.PeriodCounts, month: com.reeltracker.model.PeriodCounts, allTime: com.reeltracker.model.PeriodCounts, daily: List<com.reeltracker.model.DailyScrollCount>, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(ScrollBg).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("‹", color = ScrollText, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.clickable(onClick = onBack).padding(end = 16.dp))
-            Column {
-                Text("Scroll insights", color = ScrollText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Your recorded Reels and Shorts activity", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        InsightMetricCard("Today", today, "Reels + Shorts")
-        InsightMetricCard("This week", week.total, "Instagram " + week.instagramReels + " · YouTube " + week.youtubeShorts)
-        InsightMetricCard("This month", month.total, "Instagram " + month.instagramReels + " · YouTube " + month.youtubeShorts)
-        InsightMetricCard("All time", allTime.total, "Instagram " + allTime.instagramReels + " · YouTube " + allTime.youtubeShorts)
-        DailyScrollBarChart(daily)
-        Text("Platform breakdown", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        PlatformInsightBar("Instagram Reels", allTime.instagramReels, allTime.total)
-        PlatformInsightBar("YouTube Shorts", allTime.youtubeShorts, allTime.total)
-        Text("Counts represent detected feed-item events. They do not measure watch duration.", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-
-@Composable
-private fun DailyScrollBarChart(days: List<com.reeltracker.model.DailyScrollCount>) {
-    val maxCount = (days.maxOfOrNull { it.total } ?: 0).coerceAtLeast(1)
-    Card(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = ScrollCard)
-    ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Daily scroll count", color = ScrollText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text("Last 7 days · Reels + Shorts", color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
-            Row(
-                Modifier.fillMaxWidth().height(150.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                days.forEach { day ->
-                    Column(
-                        Modifier.weight(1f).fillMaxHeight(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        Text(
-                            day.total.toString(),
-                            color = ScrollText,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                        Spacer(Modifier.height(5.dp))
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height((92f * day.total / maxCount).coerceAtLeast(3f).dp)
-                                .clip(RoundedCornerShape(topStart = 7.dp, topEnd = 7.dp))
-                                .background(ScrollViolet)
-                        )
-                        Spacer(Modifier.height(7.dp))
-                        Text(
-                            day.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault()),
-                            color = ScrollMuted,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun InsightMetricCard(title: String, value: Int, detail: String) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = ScrollCard)) {
-        Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(title, color = ScrollMuted, style = MaterialTheme.typography.labelLarge)
-            Text(value.toString(), color = ScrollText, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text(detail, color = ScrollMuted, style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
-private fun PlatformInsightBar(label: String, value: Int, total: Int) {
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Row {
-            Text(label, color = ScrollText, modifier = Modifier.weight(1f))
-            Text(value.toString(), color = ScrollMuted)
-        }
-        androidx.compose.material3.LinearProgressIndicator(progress = { if (total > 0) value.toFloat() / total else 0f }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(8.dp)), color = ScrollViolet, trackColor = Color(0xFF292A3B))
+    val pinned = manager.isRequestPinAppWidgetSupported &&
+        manager.requestPinAppWidget(provider, null, null)
+    if (!pinned) {
+        Toast.makeText(
+            context,
+            "Long-press your home screen, open Widgets, and add Dopamine Diet.",
+            Toast.LENGTH_LONG
+        ).show()
     }
 }
